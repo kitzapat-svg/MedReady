@@ -6,7 +6,7 @@
 const CONFIG = {
   APP_NAME: 'MedReady',
   TAGLINE: 'รู้เมื่อยาเสร็จ ลดเวลารอ เชื่อม Ward กับ Pharmacy',
-  VERSION: '1.1.0',
+  VERSION: '1.2.0',
   TIMEZONE: 'Asia/Bangkok',
   
   // Explicit Spreadsheet ID
