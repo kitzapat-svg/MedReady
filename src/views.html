@@ -698,7 +698,9 @@
         </div>
         <div class="flex items-center gap-2">
           <button onclick="App.markAllNotificationsRead()" class="text-xs text-[#0071e3] hover:underline">อ่านทั้งหมด</button>
-          <button onclick="App.closeNotifications()" class="p-1 hover:bg-[#e4e2e4] rounded-lg text-[#5d5e60]">
+          <span class="text-xs text-[#e4e2e4]">|</span>
+          <button onclick="App.deleteAllNotifications()" class="text-xs text-[#ba1a1a] hover:underline">ลบทั้งหมด</button>
+          <button onclick="App.closeNotifications()" class="p-1 hover:bg-[#e4e2e4] rounded-lg text-[#5d5e60] ml-1">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>

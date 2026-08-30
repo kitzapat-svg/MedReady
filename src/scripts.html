@@ -1075,6 +1075,11 @@ const App = {
             if (unreadCount > 0) badge.classList.remove('hidden');
             else badge.classList.add('hidden');
           }
+          // Refresh list if the drawer is currently open
+          const drawer = document.getElementById('notifications-drawer');
+          if (drawer && !drawer.classList.contains('hidden')) {
+            App.openNotifications();
+          }
         }
       })
       .apiListNotifications();
@@ -1110,11 +1115,35 @@ const App = {
   },
 
   markAllNotificationsRead: function() {
+    App.showToast('กำลังปรับสถานะการอ่าน...', 'info');
     google.script.run
       .withSuccessHandler(function() {
+        App.showToast('อ่านการแจ้งเตือนทั้งหมดเรียบร้อย', 'success');
         App.loadNotifications();
       })
+      .withFailureHandler(function(err) {
+        App.showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      })
       .apiMarkAllNotificationsRead();
+  },
+
+  deleteAllNotifications: function() {
+    if (!confirm('คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?')) return;
+    
+    App.showToast('กำลังลบการแจ้งเตือน...', 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast('ลบการแจ้งเตือนทั้งหมดเรียบร้อย', 'success');
+          App.loadNotifications();
+        } else {
+          App.showToast(res.message || 'เกิดข้อผิดพลาดในการลบการแจ้งเตือน', 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      })
+      .apiDeleteAllNotifications();
   },
 
   openIssueFlagModal: function() {

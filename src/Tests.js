@@ -87,6 +87,24 @@ function runAllTests() {
     const currentUser = getCurrentUser();
     assert('Get Current User Returns Status', currentUser && typeof currentUser.status === 'string', 'Current user status: ' + (currentUser ? currentUser.status : 'null'));
     assert('Bootstrap API Structure', typeof apiGetBootstrap === 'function', 'apiGetBootstrap is defined');
+    
+    // 9. Test Notification APIs
+    createReadyNotification({
+      caseId: 'TEST-CASE-999',
+      wardScope: 'ตึกพิเศษ',
+      roomBed: '101A'
+    });
+    
+    const listRes = apiListNotifications();
+    assert('API List Notifications', listRes && listRes.success === true, 'apiListNotifications succeeds');
+    
+    if (listRes.success && listRes.data.length > 0) {
+      const markAllRes = apiMarkAllNotificationsRead();
+      assert('API Mark All Notifications Read', markAllRes && markAllRes.success === true, 'apiMarkAllNotificationsRead succeeds');
+      
+      const deleteAllRes = apiDeleteAllNotifications();
+      assert('API Delete All Notifications', deleteAllRes && deleteAllRes.success === true, 'apiDeleteAllNotifications succeeds');
+    }
 
   } catch (err) {
     failed++;

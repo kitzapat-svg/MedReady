@@ -128,3 +128,120 @@ function apiMarkNotificationsAsRead(notificationIds) {
   }
 }
 
+/**
+ * Marks all notifications for the current user (based on ward scope) as read
+ */
+function apiMarkAllNotificationsRead() {
+  try {
+    const user = requireAuthorization();
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
+      if (!sheet || sheet.getLastRow() <= 1) {
+        return successResponse(null, 'ไม่มีการแจ้งเตือน');
+      }
+
+      const lastRow = sheet.getLastRow();
+      const range = sheet.getRange(2, 1, lastRow - 1, 9);
+      const data = range.getValues();
+      const now = new Date().toISOString();
+      let updated = false;
+
+      for (let i = 0; i < data.length; i++) {
+        const r = data[i];
+        const notifId = String(r[0] || '').trim();
+        if (!notifId) continue;
+
+        const wardScope = String(r[2] || '');
+        const isRead = String(r[7]).toUpperCase() === 'TRUE';
+
+        if (isRead) continue;
+
+        // Role and ward scoping
+        if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
+          if (wardScope !== user.wardScope) {
+            continue;
+          }
+        }
+
+        // Update in-memory data
+        data[i][7] = 'TRUE';
+        data[i][8] = now;
+        updated = true;
+      }
+
+      if (updated) {
+        // Write the columns 8 and 9 (Read, Read At) back to the sheet
+        const writeRange = sheet.getRange(2, 8, lastRow - 1, 2);
+        const writeValues = data.map(r => [r[7], r[8]]);
+        writeRange.setValues(writeValues);
+      }
+
+      return successResponse(null, 'อ่านการแจ้งเตือนทั้งหมดสำเร็จ');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'MARK_ALL_READ_ERROR');
+  }
+}
+
+/**
+ * Deletes all notifications for the current user (based on ward scope)
+ */
+function apiDeleteAllNotifications() {
+  try {
+    const user = requireAuthorization();
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
+      if (!sheet || sheet.getLastRow() <= 1) {
+        return successResponse(null, 'ไม่มีการแจ้งเตือน');
+      }
+
+      const lastRow = sheet.getLastRow();
+      const range = sheet.getRange(2, 1, lastRow - 1, 9);
+      const data = range.getValues();
+      const remainingRows = [];
+      let deletedCount = 0;
+
+      for (let i = 0; i < data.length; i++) {
+        const r = data[i];
+        const notifId = String(r[0] || '').trim();
+        if (!notifId) {
+          remainingRows.push(r);
+          continue;
+        }
+
+        const wardScope = String(r[2] || '');
+
+        // Check if this row should be deleted
+        let shouldDelete = true;
+        if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
+          if (wardScope !== user.wardScope) {
+            shouldDelete = false; // keep it, it's not the user's ward scope
+          }
+        }
+
+        if (shouldDelete) {
+          deletedCount++;
+        } else {
+          remainingRows.push(r);
+        }
+      }
+
+      if (deletedCount > 0) {
+        // Clear the existing data rows
+        sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
+        
+        // Write remaining rows back
+        if (remainingRows.length > 0) {
+          sheet.getRange(2, 1, remainingRows.length, 9).setValues(remainingRows);
+        }
+      }
+
+      return successResponse(null, 'ลบการแจ้งเตือนทั้งหมดสำเร็จ');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'DELETE_ALL_NOTIFICATIONS_ERROR');
+  }
+}
+
