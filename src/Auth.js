@@ -13,12 +13,6 @@ function getCurrentUser() {
     email = Session.getActiveUser().getEmail();
   } catch (e) {}
   
-  if (!email) {
-    try {
-      email = Session.getEffectiveUser().getEmail();
-    } catch (e) {}
-  }
-  
   email = (email || '').toLowerCase().trim();
 
   let webAppUrl = 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec';
@@ -37,7 +31,7 @@ function getCurrentUser() {
       active: false,
       status: 'UNAUTHENTICATED',
       webAppUrl: webAppUrl,
-      message: 'ไม่พบข้อมูลการเข้าสู่ระบบ Google'
+      message: 'ไม่พบข้อมูลการเข้าสู่ระบบ Google กรุณาเข้าสู่ระบบด้วยบัญชี Google'
     };
   }
 
@@ -91,7 +85,7 @@ function getCurrentUser() {
       active: false,
       status: 'ACCESS_DENIED',
       webAppUrl: webAppUrl,
-      message: 'อีเมลนี้ยังไม่ได้รับสิทธิ์เข้าใช้งาน MedReady'
+      message: 'อีเมลนี้ (' + email + ') ยังไม่ได้รับสิทธิ์เข้าใช้งาน MedReady กรุณาติดต่อผู้ดูแลระบบเพื่อขอสิทธิ์'
     };
   }
 
@@ -105,7 +99,7 @@ function getCurrentUser() {
       active: false,
       status: 'ACCOUNT_DEACTIVATED',
       webAppUrl: webAppUrl,
-      message: 'บัญชีผู้ใช้งานของคุณถูกระงับการใช้งานชั่วคราว'
+      message: 'บัญชีผู้ใช้งานของคุณ (' + email + ') ถูกระงับการใช้งานชั่วคราว'
     };
   }
 
