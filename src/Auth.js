@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MedReady - Authentication & Authorization Engine
  * Enforces Google Sign-In allowlist and server-side role / ward-scope verification.
  */
@@ -174,6 +174,3 @@ function apiGetBootstrap() {
 function apiGetCurrentUser() {
   return getCurrentUser();
 }
-
-
-
