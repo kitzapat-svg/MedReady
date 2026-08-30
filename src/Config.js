@@ -9,8 +9,8 @@ const CONFIG = {
   VERSION: '1.0.0',
   TIMEZONE: 'Asia/Bangkok',
   
-  // Explicit Spreadsheet ID (optional - leave empty to auto-detect or use Script Properties)
-  SPREADSHEET_ID: '1-OOO_cdun4sTTP4Ug80OfWqJqvqnlkLg2C87zVw7OwE',
+  // Explicit Spreadsheet ID (must match sync.py)
+  SPREADSHEET_ID: '1lqcO-G4MMILOzOGjpl2m04GRCCt7QV_qMns2JQ9M1To',
 
   // Sheet Names
   SHEETS: {

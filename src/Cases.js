@@ -375,7 +375,28 @@ function apiGetIpdSyncedOrders(wardFilter) {
 
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
-    const data = sheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, 8)).getValues();
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
+    const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+    // Find column indexes dynamically from headers
+    let anIdx = headers.findIndex(h => h.toUpperCase().includes('AN'));
+    let wardIdx = headers.findIndex(h => h.includes('หอผู้ป่วย') || h.includes('ตึก') || h.toLowerCase().includes('ward'));
+    let bedIdx = headers.findIndex(h => h.includes('เตียง') || h.includes('ห้อง'));
+    let dateIdx = headers.findIndex(h => h.includes('วันที่'));
+    let timeIdx = headers.findIndex(h => h.includes('เวลา') && !h.includes('อัปเดต'));
+    let typeIdx = headers.findIndex(h => h === 'ประเภท' || (h.includes('ประเภท') && !h.includes('ยา')));
+    let medTypeIdx = headers.findIndex(h => h.includes('ประเภทยา'));
+    let updatedIdx = headers.findIndex(h => h.includes('อัปเดต'));
+
+    // Safe fallbacks
+    if (anIdx === -1) anIdx = 1;
+    if (wardIdx === -1) wardIdx = lastCol >= 9 ? 3 : 2;
+    if (bedIdx === -1) bedIdx = lastCol >= 9 ? 4 : 3;
+    if (dateIdx === -1) dateIdx = lastCol >= 9 ? 5 : 4;
+    if (timeIdx === -1) timeIdx = lastCol >= 9 ? 6 : 5;
+    if (typeIdx === -1) typeIdx = 0;
+    if (medTypeIdx === -1) medTypeIdx = lastCol >= 9 ? 7 : 6;
+    if (updatedIdx === -1) updatedIdx = lastCol >= 9 ? 8 : 7;
 
     // Fetch existing active cases to identify already submitted ANs
     const activeCasesRes = apiListCases();
@@ -403,43 +424,27 @@ function apiGetIpdSyncedOrders(wardFilter) {
 
     for (let i = 0; i < data.length; i++) {
       const r = data[i];
-      const orderType = String(r[0] || '').trim();
-      const rawAn = String(r[1] || '').trim();
-
-      // PDPA Check: Handle 8-column layout: [type, an, ward, roomBed, date, time, medType, updatedAt]
-      let ward = '';
-      let roomBed = '';
-      let orderDate = '';
-      let orderTime = '';
-      let medType = '';
-      let updatedAt = '';
-
-      if (lastCol === 9) {
-        // Old 9-column format fallback: [type, an, name(skip), ward, bed, date, time, medType, updatedAt]
-        ward = String(r[3] || '').trim();
-        roomBed = String(r[4] || '').trim();
-        orderDate = String(r[5] || '').trim();
-        orderTime = String(r[6] || '').trim();
-        medType = String(r[7] || '').trim();
-        updatedAt = String(r[8] || '').trim();
-      } else {
-        // Standard 8-column PDPA format: [type, an, ward, bed, date, time, medType, updatedAt]
-        ward = String(r[2] || '').trim();
-        roomBed = String(r[3] || '').trim();
-        orderDate = String(r[4] || '').trim();
-        orderTime = String(r[5] || '').trim();
-        medType = String(r[6] || '').trim();
-        updatedAt = String(r[7] || '').trim();
-      }
+      const orderType = typeIdx >= 0 ? String(r[typeIdx] || '').trim() : 'ใบสั่งยาใหม่';
+      const rawAn = anIdx >= 0 ? String(r[anIdx] || '').trim() : '';
+      const ward = wardIdx >= 0 ? String(r[wardIdx] || '').trim() : '';
+      const roomBed = bedIdx >= 0 ? String(r[bedIdx] || '').trim() : '';
+      const orderDate = dateIdx >= 0 ? String(r[dateIdx] || '').trim() : '';
+      const orderTime = timeIdx >= 0 ? String(r[timeIdx] || '').trim() : '';
+      const medType = medTypeIdx >= 0 ? String(r[medTypeIdx] || '').trim() : '';
+      const updatedAt = updatedIdx >= 0 ? String(r[updatedIdx] || '').trim() : '';
 
       if (!rawAn) continue;
       if (updatedAt && (!latestTimestamp || updatedAt > latestTimestamp)) {
         latestTimestamp = updatedAt;
       }
 
-      // Filter by Ward if applicable
-      if (targetWard && ward && ward !== targetWard) {
-        continue;
+      // Flexible Ward matching
+      if (targetWard && ward && targetWard !== 'ALL') {
+        const tw = targetWard.replace(/\s+/g, '').toLowerCase();
+        const w = ward.replace(/\s+/g, '').toLowerCase();
+        if (tw !== w && !w.includes(tw) && !tw.includes(w)) {
+          continue;
+        }
       }
 
       const cleanAnLower = rawAn.toLowerCase().replace(/[^0-9a-z]/g, '');
