@@ -163,3 +163,12 @@ function apiGetBootstrap() {
   }
 }
 
+/**
+ * Client API call to get current user authorization info
+ */
+function apiGetCurrentUser() {
+  return getCurrentUser();
+}
+
+
+

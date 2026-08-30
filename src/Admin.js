@@ -111,6 +111,43 @@ function apiSaveUser(userData) {
 }
 
 /**
+ * Deletes a user from the allowlist (Admin only)
+ */
+function apiDeleteUser(email) {
+  try {
+    const admin = requireAuthorization([CONFIG.ROLES.SUPER_ADMIN]);
+    if (!email) return errorResponse('กรุณาระบุอีเมล', 'INVALID_INPUT');
+    const cleanEmail = String(email).toLowerCase().trim();
+
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(CONFIG.SHEETS.USERS);
+      if (!sheet) throw new Error('ไม่พบตาราง Users');
+
+      const lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        const emails = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (let i = 0; i < emails.length; i++) {
+          if (String(emails[i][0] || '').toLowerCase().trim() === cleanEmail) {
+            sheet.deleteRow(i + 2);
+            logTimelineEvent({
+              caseId: '-',
+              event: 'USER_DELETED',
+              actor: admin.name + ' (' + admin.email + ')',
+              details: 'ลบผู้ใช้ ' + cleanEmail
+            });
+            return successResponse({ email: cleanEmail }, 'ลบผู้ใช้สำเร็จ');
+          }
+        }
+      }
+      return errorResponse('ไม่พบผู้ใช้งานนี้ในระบบ', 'NOT_FOUND');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'DELETE_USER_ERROR');
+  }
+}
+
+/**
  * Lists all "MedReady Database" Google Sheets in Drive.
  * Useful for reviewing duplicate files.
  */

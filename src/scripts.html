@@ -135,6 +135,12 @@ const App = {
       // Screen-specific triggers
       if (screenId === 'send-patient') {
         this.loadIpdSyncedOrders();
+      } else if (screenId === 'ward-dashboard') {
+        this.renderWardDashboard();
+      } else if (screenId === 'pharmacy-dashboard') {
+        this.renderPharmacyDashboard();
+      } else if (screenId === 'board') {
+        this.renderBoard();
       } else if (screenId === 'analytics') {
         this.loadAnalytics();
       } else if (screenId === 'admin') {
@@ -273,23 +279,22 @@ const App = {
       const isAlreadySubmitted = order.isSubmitted;
       const statusPill = isAlreadySubmitted 
         ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1">
-             <span class="material-symbols-outlined text-xs">check_circle</span> ส่งห้องยาแล้ว (${order.existingCase.stateThai || ''})
+             <span class="material-symbols-outlined text-xs">check_circle</span> ส่งห้องยาแล้ว (${order.existingCase ? order.existingCase.stateThai || '' : ''})
            </span>`
         : `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#28cd41] text-white flex items-center gap-1 shadow-xs">
              <span class="material-symbols-outlined text-xs">medication</span> ยากลับบ้าน (HME)
            </span>`;
-
       const actionBtn = isAlreadySubmitted
         ? `<button type="button" disabled class="px-3.5 py-1.5 text-xs bg-[#f0edef] text-[#86868b] rounded-lg font-medium cursor-not-allowed flex items-center gap-1">
              <span class="material-symbols-outlined text-xs">done_all</span> ส่งแล้ว
            </button>`
         : `<button id="ipd-btn-${order.rawAn}" type="button" onclick="App.selectIpdOrder('${order.rawAn}', '${order.roomBed}')" 
              class="px-3.5 py-1.5 text-xs bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg font-medium flex items-center gap-1 shadow-sm transition-all">
-             <span class="material-symbols-outlined text-xs">add_circle</span> เลือกส่งเคสนี้
+             <span class="material-symbols-outlined text-xs">arrow_forward</span> ดึงข้อมูลส่งเคส
            </button>`;
 
-      // Clean display time
       let displayTime = order.orderTime || '';
+      // Clean display time
       if (displayTime.includes('GMT') || displayTime.includes('1899')) {
         const match = displayTime.match(/(\d{1,2}:\d{2})/);
         displayTime = match ? match[1] + ' น.' : '';
@@ -306,14 +311,12 @@ const App = {
           
           <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[#414753] pt-0.5">
             <div class="flex items-center gap-1.5 font-medium text-[#1b1b1d]">
-              <span class="material-symbols-outlined text-sm text-[#0071e3]">domain</span>
-              <span>${order.ward || 'ตึกพิเศษ'}</span>
               <span class="text-[#86868b]">•</span>
               <span class="text-[#0059b5] font-semibold">${order.roomBed || 'ไม่ระบุห้อง'}</span>
             </div>
             ${displayTime ? `
-              <div class="flex items-center gap-1 text-[11px] font-mono text-[#86868b] bg-[#f6f3f5] px-2 py-0.5 rounded">
-                <span class="material-symbols-outlined text-xs text-[#86868b]">schedule</span>
+              <div class="flex items-center gap-1 text-[#86868b]">
+                <span class="material-symbols-outlined text-xs">schedule</span>
                 <span>${displayTime}</span>
               </div>
             ` : ''}
@@ -326,7 +329,6 @@ const App = {
       `;
     });
     html += '</div>';
-
     container.innerHTML = html;
   },
 
@@ -358,19 +360,6 @@ const App = {
       btn.innerHTML = '<span class="material-symbols-outlined text-xs">check</span> เลือกแล้ว';
     }
     if (card) {
-      card.classList.remove('border-[#0071e3]/30', 'hover:border-[#0071e3]');
-      card.classList.add('border-[#e4e2e4]', 'bg-[#fcf8fb]', 'opacity-75');
-    }
-
-    // Scroll smoothly to form and emphasize submit button
-    const form = document.getElementById('form-send-patient');
-    if (form) {
-      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const submitBtn = document.getElementById('btn-submit-case');
-      if (submitBtn) {
-        submitBtn.classList.add('ring-4', 'ring-[#0071e3]/30');
-        setTimeout(() => submitBtn.classList.remove('ring-4', 'ring-[#0071e3]/30'), 1500);
-      }
     }
 
     this.showToast(`เลือกข้อมูล AN: ${rawAn} (ห้อง ${roomBed}) แล้ว`, 'success');
@@ -576,15 +565,23 @@ const App = {
     const rdyCount = this.cases.filter(c => c.currentState === 'READY').length;
     const bskCount = this.cases.filter(c => c.currentState === 'BASKET_RECEIVED').length;
 
-    document.getElementById('pharm-stat-submitted').textContent = subCount;
-    document.getElementById('pharm-stat-inprog').textContent = inpCount;
-    document.getElementById('pharm-stat-basket').textContent = bskCount;
+    const elSub = document.getElementById('pharm-stat-submitted');
+    const elInp = document.getElementById('pharm-stat-inprog');
+    const elBsk = document.getElementById('pharm-stat-basket');
+    if (elSub) elSub.textContent = subCount;
+    if (elInp) elInp.textContent = inpCount;
+    if (elBsk) elBsk.textContent = bskCount;
 
-    document.getElementById('pharm-tab-count-all').textContent = this.cases.length;
-    document.getElementById('pharm-tab-count-sub').textContent = subCount;
-    document.getElementById('pharm-tab-count-inp').textContent = inpCount;
-    document.getElementById('pharm-tab-count-rdy').textContent = rdyCount;
-    document.getElementById('pharm-tab-count-bsk').textContent = bskCount;
+    const tAll = document.getElementById('pharm-tab-count-all');
+    const tSub = document.getElementById('pharm-tab-count-sub');
+    const tInp = document.getElementById('pharm-tab-count-inp');
+    const tRdy = document.getElementById('pharm-tab-count-rdy');
+    const tBsk = document.getElementById('pharm-tab-count-bsk');
+    if (tAll) tAll.textContent = this.cases.length;
+    if (tSub) tSub.textContent = subCount;
+    if (tInp) tInp.textContent = inpCount;
+    if (tRdy) tRdy.textContent = rdyCount;
+    if (tBsk) tBsk.textContent = bskCount;
 
     const filtered = this.cases.filter(c => {
       if (this.pharmacyFilter === 'ALL') return true;
@@ -592,43 +589,103 @@ const App = {
     });
 
     const container = document.getElementById('pharmacy-queue-cards');
+    if (!container) return;
+
     if (filtered.length === 0) {
       container.innerHTML = `
-        <div class="p-12 text-center bg-white rounded-xl border border-[#e4e2e4] text-[#86868b]">
-          <span class="material-symbols-outlined text-4xl text-[#86868b] mb-2 block">inbox</span>
-          <p class="text-sm">ไม่มีเคสในคิวนี้</p>
+        <div class="p-12 text-center bg-white rounded-xl border border-[#e4e2e4] text-[#86868b] space-y-2">
+          <span class="material-symbols-outlined text-4xl text-[#cac4cf] block">inbox</span>
+          <p class="text-sm font-medium">ไม่มีรายการเคสในสถานะนี้</p>
         </div>
       `;
       return;
     }
 
+    const stateOrder = {
+      'SUBMITTED': 1,
+      'IN_PROGRESS': 2,
+      'READY': 3,
+      'BASKET_RECEIVED': 4,
+      'DISPENSED': 5
+    };
+
     let html = '';
     filtered.forEach(c => {
+      const currentOrder = stateOrder[c.currentState] || 1;
       const slaClass = c.slaBand === 'BREACHED' ? 'sla-strip-breached' : (c.slaBand === 'APPROACHING' ? 'sla-strip-approaching' : 'sla-strip-normal');
+      const slaBadgeClass = c.slaBand === 'BREACHED' ? 'bg-[#ff3b30]/10 text-[#ff3b30]' : (c.slaBand === 'APPROACHING' ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' : 'bg-[#28cd41]/10 text-[#28cd41]');
+
+      const steps = [
+        { label: 'ส่งแล้ว', order: 1 },
+        { label: 'กำลังเตรียม', order: 2 },
+        { label: 'พร้อมจ่าย', order: 3 },
+        { label: 'รับตะกร้า', order: 4 },
+        { label: 'จ่ายยา', order: 5 }
+      ];
+
+      let stepsHtml = '';
+      steps.forEach(st => {
+        const isCompleted = currentOrder > st.order || (currentOrder === 5 && st.order === 5);
+        const isCurrent = currentOrder === st.order && currentOrder !== 5;
+        const stepClass = isCompleted ? 'completed' : (isCurrent ? 'current' : '');
+        const dotContent = isCompleted ? '<span class="material-symbols-outlined text-xs">check</span>' : st.order;
+        const dotClass = isCompleted ? 'completed' : (isCurrent ? 'current' : 'pending');
+        const textClass = isCompleted ? 'text-[#0071e3] font-semibold' : (isCurrent ? 'text-[#1b1b1d] font-bold' : 'text-[#86868b]');
+
+        stepsHtml += `
+          <div class="timeline-step flex flex-col items-center flex-1 ${stepClass}">
+            <div class="timeline-dot ${dotClass}">${dotContent}</div>
+            <span class="text-[10px] mt-1.5 ${textClass} whitespace-nowrap">${st.label}</span>
+          </div>
+        `;
+      });
+
       const nextBtn = c.nextState ? `
         <button onclick="event.stopPropagation(); App.handleTransitionCase('${c.caseId}', '${c.nextState}', '${c.currentState}')"
-          class="px-4 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5">
+          class="w-full sm:w-auto px-4 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-95">
           <span>${c.nextActionLabel || 'ดำเนินการต่อ'}</span>
           <span class="material-symbols-outlined text-sm">arrow_forward</span>
         </button>
-      ` : '';
+      ` : `
+        <span class="px-3 py-1.5 rounded-lg bg-[#28cd41]/10 text-[#28cd41] text-xs font-semibold flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">done_all</span> จ่ายยาเรียบร้อย
+        </span>
+      `;
 
       html += `
-        <div onclick="App.openCaseDetail('${c.caseId}')" class="medready-card medready-card-interactive p-4.5 cursor-pointer ${slaClass} flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="space-y-1">
+        <div onclick="App.openCaseDetail('${c.caseId}')" class="medready-card medready-card-interactive p-5 cursor-pointer ${slaClass} flex flex-col xl:flex-row xl:items-center justify-between gap-5 bg-white shadow-xs hover:shadow-md transition-all">
+          <!-- 1. Patient & Case Metadata -->
+          <div class="flex-shrink-0 min-w-[200px] space-y-1.5">
             <div class="flex items-center gap-2">
-              <span class="font-mono font-bold text-sm text-[#0059b5]">${c.caseId}</span>
-              <span class="font-semibold text-xs text-[#1b1b1d]">${c.wardScope} • ${c.roomBed}</span>
-              <span class="text-xs font-mono text-[#86868b]">(${c.maskedAn})</span>
+              <span class="font-numeric font-bold text-base text-[#0059b5]">${c.caseId}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase ${slaBadgeClass}">${c.slaLabel}</span>
             </div>
-            <div class="flex items-center gap-3 text-[11px] text-[#86868b]">
-              <span>สถานะ: <strong class="text-[#1b1b1d]">${c.stateThai}</strong></span>
-              <span>เวลารวม: <strong class="font-mono text-[#1b1b1d]">${c.elapsedText}</strong></span>
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${c.slaBand === 'BREACHED' ? 'bg-[#ff3b30]/10 text-[#ff3b30]' : (c.slaBand === 'APPROACHING' ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' : 'bg-[#28cd41]/10 text-[#28cd41]')}">${c.slaLabel}</span>
+            <div class="flex items-center gap-1.5 text-xs text-[#1b1b1d] font-medium">
+              <span class="material-symbols-outlined text-sm text-[#86868b]">meeting_room</span>
+              <span class="font-semibold text-[#0059b5]">${c.wardScope}</span> • <span>${c.roomBed}</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-[#86868b]">
+              <span class="font-mono">${c.maskedAn}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#f0edef] text-[#414753]">${c.appointmentStatus || 'นัดหมายแล้ว'}</span>
             </div>
           </div>
-          <div class="flex items-center gap-2 shrink-0">
-            ${nextBtn}
+
+          <!-- 2. Interactive 5-Step Timeline -->
+          <div class="flex-grow w-full max-w-xl px-2 py-1">
+            <div class="flex justify-between w-full relative">
+              ${stepsHtml}
+            </div>
+          </div>
+
+          <!-- 3. Elapsed Time & Primary Action -->
+          <div class="flex-shrink-0 flex flex-row xl:flex-col items-center xl:items-end justify-between w-full xl:w-48 gap-3 pt-3 xl:pt-0 border-t xl:border-t-0 border-[#e4e2e4]">
+            <div class="text-left xl:text-right">
+              <div class="font-numeric font-bold text-sm text-[#1b1b1d]">เวลารวม ${c.elapsedText}</div>
+              <div class="text-[10px] text-[#86868b]">ส่งเมื่อ ${c.submittedAt ? new Date(c.submittedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</div>
+            </div>
+            <div class="shrink-0 w-full sm:w-auto xl:w-full flex justify-end">
+              ${nextBtn}
+            </div>
           </div>
         </div>
       `;
@@ -971,41 +1028,133 @@ const App = {
   },
 
   // =========================================================================
-  // 9. ANALYTICS & ADMIN PLACEHOLDERS
+  // 9. ANALYTICS & OPERATIONAL INTELLIGENCE
   // =========================================================================
   loadAnalytics: function() {
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
-          const kpis = res.data.kpis || {};
-          document.getElementById('kpi-patient-wait').textContent = (kpis.avgPatientWaitingMinutes || 0) + ' นาที';
-          document.getElementById('kpi-prep-lead').textContent = (kpis.avgPrepLeadMinutes || 0) + ' นาที';
-          document.getElementById('kpi-sla-breach').textContent = (kpis.slaBreachRatePercent || 0) + '%';
-          document.getElementById('kpi-total-cases').textContent = kpis.totalCases || 0;
-          document.getElementById('kpi-completed-cases').textContent = kpis.completedCases || 0;
+          const kpis = res.data;
+          const waitEl = document.getElementById('kpi-patient-wait');
+          const prepEl = document.getElementById('kpi-prep-lead');
+          const breachEl = document.getElementById('kpi-sla-breach');
+          const totalEl = document.getElementById('kpi-total-cases');
+          const compEl = document.getElementById('kpi-completed-cases');
+
+          if (waitEl) waitEl.textContent = kpis.avgPatientWaitingText || (kpis.avgPatientWaitingMinutes + ' นาที');
+          if (prepEl) prepEl.textContent = kpis.avgPrepLeadText || (kpis.avgPrepLeadMinutes + ' นาที');
+          if (breachEl) breachEl.textContent = (kpis.slaBreachRate || 0) + '%';
+          if (totalEl) totalEl.textContent = kpis.totalCases || 0;
+          if (compEl) compEl.textContent = kpis.completedCases || 0;
+
+          // Render Stage Distribution
+          const stageListEl = document.getElementById('analytics-stage-list');
+          if (stageListEl && kpis.stageCounts) {
+            const stages = [
+              { key: 'SUBMITTED', label: '1. รอห้องยาดำเนินการ', color: 'bg-[#0071e3]' },
+              { key: 'IN_PROGRESS', label: '2. กำลังเตรียมยา', color: 'bg-[#0059b5]' },
+              { key: 'READY', label: '3. พร้อมจ่าย', color: 'bg-[#28cd41]' },
+              { key: 'BASKET_RECEIVED', label: '4. รอจ่ายยา (รับตะกร้าแล้ว)', color: 'bg-[#ff9f0a]' },
+              { key: 'DISPENSED', label: '5. จ่ายยาแล้ว', color: 'bg-[#86868b]' }
+            ];
+            const total = kpis.totalCases || 1;
+            let sHtml = '';
+            stages.forEach(st => {
+              const count = kpis.stageCounts[st.key] || 0;
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              sHtml += `
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs">
+                    <span class="font-medium text-[#1b1b1d]">${st.label}</span>
+                    <span class="font-mono text-[#5d5e60]">${count} เคส (${pct}%)</span>
+                  </div>
+                  <div class="w-full h-2 bg-[#f0edef] rounded-full overflow-hidden">
+                    <div class="h-full ${st.color} rounded-full transition-all" style="width: ${pct}%"></div>
+                  </div>
+                </div>
+              `;
+            });
+            stageListEl.innerHTML = sHtml;
+          }
+
+          // Render Ward Breakdown
+          const wardListEl = document.getElementById('analytics-ward-list');
+          if (wardListEl && kpis.wardBreakdown) {
+            const total = kpis.totalCases || 1;
+            let wHtml = '';
+            const wards = Object.keys(kpis.wardBreakdown);
+            if (wards.length === 0) {
+              wHtml = '<div class="text-xs text-[#86868b] text-center py-4">ยังไม่มีข้อมูลเคสแยกตาม Ward</div>';
+            } else {
+              wards.forEach(w => {
+                const count = kpis.wardBreakdown[w] || 0;
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                wHtml += `
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                      <span class="font-medium text-[#1b1b1d]">${w}</span>
+                      <span class="font-mono text-[#5d5e60]">${count} เคส (${pct}%)</span>
+                    </div>
+                    <div class="w-full h-2 bg-[#f0edef] rounded-full overflow-hidden">
+                      <div class="h-full bg-[#0071e3] rounded-full transition-all" style="width: ${pct}%"></div>
+                    </div>
+                  </div>
+                `;
+              });
+            }
+            wardListEl.innerHTML = wHtml;
+          }
         }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ไม่สามารถโหลดข้อมูลสถิติ: ' + err.message, 'error');
       })
       .apiGetAnalytics();
   },
 
+  // =========================================================================
+  // 10. ADMIN & SETTINGS MANAGEMENT
+  // =========================================================================
   loadAdmin: function() {
+    // 1. Fetch current SLA settings
+    google.script.run
+      .withSuccessHandler(function(settings) {
+        if (settings) {
+          const normInput = document.getElementById('setting-sla-normal');
+          const appInput = document.getElementById('setting-sla-approaching');
+          if (normInput) normInput.value = settings.SLA_NORMAL_MAX || '30';
+          if (appInput) appInput.value = settings.SLA_APPROACHING_MAX || '45';
+        }
+      })
+      .apiGetSettingsPublic();
+
+    // 2. Fetch Users allowlist
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
           const tbody = document.getElementById('admin-users-table-body');
-          document.getElementById('admin-user-count').textContent = res.data.length + ' คน';
+          const countEl = document.getElementById('admin-user-count');
+          if (countEl) countEl.textContent = res.data.length + ' คน';
+          if (!tbody) return;
+
           let html = '';
           res.data.forEach(u => {
             html += `
-              <tr class="hover:bg-[#f6f3f5]">
-                <td class="py-3 px-4 font-mono text-[#0059b5]">${u.email}</td>
-                <td class="py-3 px-4">${u.name}</td>
-                <td class="py-3 px-4 font-semibold">${u.role}</td>
+              <tr class="hover:bg-[#f6f3f5] transition-colors">
+                <td class="py-3 px-4 font-mono text-[#0059b5] font-semibold">${u.email}</td>
+                <td class="py-3 px-4 font-medium">${u.name}</td>
+                <td class="py-3 px-4">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f0edef] text-[#1b1b1d]">${u.role}</span>
+                </td>
                 <td class="py-3 px-4">${u.wardScope}</td>
-                <td class="py-3 px-4">${u.active ? '🟢 Active' : '🔴 Inactive'}</td>
+                <td class="py-3 px-4">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.active ? 'bg-[#28cd41]/10 text-[#28cd41]' : 'bg-[#ff3b30]/10 text-[#ff3b30]'}">
+                    ${u.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
                 <td class="py-3 px-4 text-[#86868b]">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('th-TH') : '-'}</td>
                 <td class="py-3 px-4 text-right">
-                  <button onclick="App.deleteUser('${u.email}')" class="text-[#ba1a1a] hover:underline text-xs">ลบ</button>
+                  <button onclick="App.deleteUser('${u.email}')" class="px-2.5 py-1 text-xs text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded font-medium transition-colors">ลบ</button>
                 </td>
               </tr>
             `;
@@ -1014,6 +1163,97 @@ const App = {
         }
       })
       .apiListUsers();
+  },
+
+  handleSaveSettings: function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const normalInput = document.getElementById('setting-sla-normal');
+    const appInput = document.getElementById('setting-sla-approaching');
+    if (!normalInput || !appInput) return;
+
+    const normalVal = normalInput.value.trim();
+    const appVal = appInput.value.trim();
+
+    if (!normalVal || !appVal || parseInt(normalVal, 10) <= 0 || parseInt(appVal, 10) <= 0) {
+      this.showToast('กรุณากรอกเกณฑ์เวลา SLA ให้ถูกต้อง (มากกว่า 0 นาที)', 'warning');
+      return;
+    }
+
+    this.showToast('กำลังบันทึกเกณฑ์เวลา SLA...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast('บันทึกเกณฑ์เวลา SLA สำเร็จ', 'success');
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ไม่สามารถบันทึกเกณฑ์เวลา: ' + err.message, 'error');
+      })
+      .apiUpdateSettings({
+        SLA_NORMAL_MAX: normalVal,
+        SLA_APPROACHING_MAX: appVal
+      });
+  },
+
+  showAddUserModal: function() {
+    document.getElementById('modal-add-user').classList.remove('hidden');
+  },
+
+  closeAddUserModal: function() {
+    document.getElementById('modal-add-user').classList.add('hidden');
+  },
+
+  handleSaveUser: function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const email = document.getElementById('modal-user-email').value.trim();
+    const name = document.getElementById('modal-user-name').value.trim();
+    const role = document.getElementById('modal-user-role').value;
+    const ward = document.getElementById('modal-user-ward').value;
+    const active = document.getElementById('modal-user-active').checked;
+
+    if (!email || !role) {
+      this.showToast('กรุณาระบุอีเมลและบทบาท', 'warning');
+      return;
+    }
+
+    this.showToast('กำลังบันทึกข้อมูลผู้ใช้...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.closeAddUserModal();
+          App.showToast('บันทึกผู้ใช้เรียบร้อย', 'success');
+          document.getElementById('form-add-user').reset();
+          App.loadAdmin();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('บันทึกผู้ใช้ไม่สำเร็จ: ' + err.message, 'error');
+      })
+      .apiSaveUser({ email, name, role, wardScope: ward, active });
+  },
+
+  deleteUser: function(email) {
+    if (!confirm(`คุณต้องการลบผู้ใช้ ${email} ออกจากระบบใช่หรือไม่?`)) return;
+    this.showToast('กำลังลบผู้ใช้...', 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast('ลบผู้ใช้สำเร็จ', 'success');
+          App.loadAdmin();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ลบผู้ใช้ไม่สำเร็จ: ' + err.message, 'error');
+      })
+      .apiDeleteUser(email);
   }
 };
 
