@@ -221,6 +221,7 @@ const App = {
 
     google.script.run
       .withSuccessHandler(function(res) {
+        console.log('[MedReady IPD Sync Response]:', res);
         if (res && res.success && res.data) {
           App.syncedIpdOrders = res.data.orders || [];
           App.renderIpdSyncedOrders(res.data);
@@ -228,13 +229,14 @@ const App = {
         } else {
           container.innerHTML = `
             <div class="p-4 text-center text-xs text-[#86868b] bg-[#fcf8fb] rounded-lg">
-              ไม่พบรายการ Sync จาก Intranet
+              ${res && res.message ? res.message : 'ไม่พบรายการ Sync จาก Intranet'}
             </div>
           `;
           if (badge) badge.textContent = '0';
         }
       })
       .withFailureHandler(function(err) {
+        console.error('[MedReady IPD Sync Error]:', err);
         container.innerHTML = `
           <div class="p-4 text-center text-xs text-[#ba1a1a] bg-[#ffdad6]/40 rounded-lg">
             เกิดข้อผิดพลาดในการโหลดข้อมูล Sync: ${err.message}

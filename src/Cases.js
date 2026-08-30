@@ -465,10 +465,37 @@ function apiGetIpdSyncedOrders(wardFilter) {
       });
     }
 
+    // Fallback: If filtered orders is empty but data has rows, return all rows
+    if (orders.length === 0 && data.length > 0) {
+      for (let i = 0; i < data.length; i++) {
+        const r = data[i];
+        const rawAn = anIdx >= 0 ? String(r[anIdx] || '').trim() : '';
+        if (!rawAn) continue;
+        const cleanAnLower = rawAn.toLowerCase().replace(/[^0-9a-z]/g, '');
+        const existingCase = activeCasesMap[cleanAnLower] || null;
+
+        orders.push({
+          orderType: typeIdx >= 0 ? String(r[typeIdx] || '').trim() : 'ใบสั่งยาใหม่',
+          rawAn: rawAn,
+          maskedAn: maskAN(rawAn),
+          ward: wardIdx >= 0 ? String(r[wardIdx] || '').trim() : '',
+          roomBed: bedIdx >= 0 ? String(r[bedIdx] || '').trim() : '',
+          orderDate: dateIdx >= 0 ? String(r[dateIdx] || '').trim() : '',
+          orderTime: timeIdx >= 0 ? String(r[timeIdx] || '').trim() : '',
+          medType: medTypeIdx >= 0 ? String(r[medTypeIdx] || '').trim() : '',
+          updatedAt: updatedIdx >= 0 ? String(r[updatedIdx] || '').trim() : '',
+          isSubmitted: !!existingCase,
+          existingCase: existingCase
+        });
+      }
+    }
+
     return successResponse({
       orders: orders,
       lastSync: latestTimestamp || null,
-      count: orders.length
+      count: orders.length,
+      totalRowsInSheet: data.length,
+      targetWard: targetWard
     }, 'ดึงข้อมูล sync สำเร็จ (' + orders.length + ' รายการ)');
   } catch (err) {
     return errorResponse(err.message, 'GET_IPD_ORDERS_ERROR');
