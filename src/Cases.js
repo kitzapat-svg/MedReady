@@ -429,7 +429,7 @@ function apiGetIpdSyncedOrders(wardFilter) {
       const ward = wardIdx >= 0 ? String(r[wardIdx] || '').trim() : '';
       const roomBed = bedIdx >= 0 ? String(r[bedIdx] || '').trim() : '';
       const orderDate = dateIdx >= 0 ? String(r[dateIdx] || '').trim() : '';
-      const orderTime = timeIdx >= 0 ? String(r[timeIdx] || '').trim() : '';
+      const orderTime = timeIdx >= 0 ? formatCleanTime(r[timeIdx]) : '';
       const medType = medTypeIdx >= 0 ? String(r[medTypeIdx] || '').trim() : '';
       const updatedAt = updatedIdx >= 0 ? String(r[updatedIdx] || '').trim() : '';
 
@@ -481,7 +481,7 @@ function apiGetIpdSyncedOrders(wardFilter) {
           ward: wardIdx >= 0 ? String(r[wardIdx] || '').trim() : '',
           roomBed: bedIdx >= 0 ? String(r[bedIdx] || '').trim() : '',
           orderDate: dateIdx >= 0 ? String(r[dateIdx] || '').trim() : '',
-          orderTime: timeIdx >= 0 ? String(r[timeIdx] || '').trim() : '',
+          orderTime: timeIdx >= 0 ? formatCleanTime(r[timeIdx]) : '',
           medType: medTypeIdx >= 0 ? String(r[medTypeIdx] || '').trim() : '',
           updatedAt: updatedIdx >= 0 ? String(r[updatedIdx] || '').trim() : '',
           isSubmitted: !!existingCase,

@@ -62,6 +62,28 @@ function formatThaiTime(date) {
 }
 
 /**
+ * Format any time/date value into clean "HH:mm น." in Asia/Bangkok
+ */
+function formatCleanTime(timeVal) {
+  if (!timeVal) return '-';
+  if (typeof timeVal === 'object' && timeVal instanceof Date) {
+    return Utilities.formatDate(timeVal, CONFIG.TIMEZONE, 'HH:mm น.');
+  }
+  const str = String(timeVal).trim();
+  if (str.includes('GMT') || str.includes('1899') || str.includes('T')) {
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        return Utilities.formatDate(d, CONFIG.TIMEZONE, 'HH:mm น.');
+      }
+    } catch(e) {}
+  }
+  const m = str.match(/(\d{1,2}:\d{2})/);
+  if (m) return m[1] + ' น.';
+  return str;
+}
+
+/**
  * Format Date to readable Thai datetime "dd/MM/yyyy HH:mm"
  */
 function formatThaiDateTime(date) {
