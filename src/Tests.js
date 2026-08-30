@@ -117,6 +117,47 @@ function runAllTests() {
     const sampleDate = formatDateBangkok('2026-08-30T15:30:00Z');
     assert('Format Date Bangkok', sampleDate === '2026-08-30', 'Formatted date: ' + sampleDate);
 
+    // 12. Test User Management APIs (Save, Toggle Active, List)
+    const testUserEmail = 'test_nurse_unit@hospital.local';
+    const saveUserRes = apiSaveUser({
+      email: testUserEmail,
+      name: 'พยาบาล ทดสอบระบบ',
+      role: 'WARD',
+      wardScope: 'ตึกพิเศษ',
+      active: true
+    });
+    assert('API Save User (Create/Update)', saveUserRes && saveUserRes.success === true, 'apiSaveUser succeeds');
+
+    const toggleOffRes = apiToggleUserActive(testUserEmail, false);
+    assert('API Toggle User Active (Deactivate)', toggleOffRes && toggleOffRes.success === true && toggleOffRes.data.active === false, 'User deactivated');
+
+    const toggleOnRes = apiToggleUserActive(testUserEmail, true);
+    assert('API Toggle User Active (Activate)', toggleOnRes && toggleOnRes.success === true && toggleOnRes.data.active === true, 'User activated');
+
+    const listUsersRes = apiListUsers();
+    assert('API List Users', listUsersRes && listUsersRes.success === true && Array.isArray(listUsersRes.data), 'apiListUsers returned users array');
+
+    // Clean up test user
+    apiDeleteUser(testUserEmail);
+
+    // 13. Test Ward Management APIs (List, Add, Update, Set Default, Delete)
+    const initialWardsRes = apiListWards();
+    assert('API List Wards Initial', initialWardsRes && initialWardsRes.success === true && Array.isArray(initialWardsRes.data.wards), 'apiListWards succeeds');
+
+    const testWardName = 'หอผู้ป่วยทดสอบพิเศษ 99';
+    const addWardRes = apiAddWard(testWardName);
+    assert('API Add Ward', addWardRes && addWardRes.success === true, 'apiAddWard succeeds: ' + testWardName);
+
+    const renameWardName = 'หอผู้ป่วยทดสอบพิเศษ 99 (ปรับปรุง)';
+    const updateWardRes = apiUpdateWard(testWardName, renameWardName);
+    assert('API Update Ward', updateWardRes && updateWardRes.success === true, 'apiUpdateWard succeeds');
+
+    const setDefaultRes = apiSetDefaultWard(renameWardName);
+    assert('API Set Default Ward', setDefaultRes && setDefaultRes.success === true, 'apiSetDefaultWard succeeds');
+
+    const deleteWardRes = apiDeleteWard(renameWardName);
+    assert('API Delete Ward', deleteWardRes && deleteWardRes.success === true, 'apiDeleteWard succeeds');
+
   } catch (err) {
     failed++;
     results.push({ name: 'Exception in tests', status: 'FAIL', message: err.message });
@@ -130,4 +171,5 @@ function runAllTests() {
     results: results
   };
 }
+
 

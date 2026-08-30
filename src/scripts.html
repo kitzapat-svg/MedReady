@@ -1580,6 +1580,11 @@ const App = {
 
   // =========================================================================
   // 10. ADMIN & SETTINGS MANAGEMENT
+  // =========================================================================
+  adminTab: 'users',
+  adminUsers: [],
+  adminWards: [],
+
   /**
    * Helper to format time value to HH:mm string safely
    */
@@ -1593,11 +1598,615 @@ const App = {
     return defaultVal || str;
   },
 
-  // =========================================================================
-  // ADMIN DASHBOARD & SETTINGS
-  // =========================================================================
+  /**
+   * Switch between Admin sub-navigation tabs (users, wards, settings)
+   */
+  switchAdminTab: function(tabName) {
+    this.adminTab = tabName;
+
+    // Subtab Buttons
+    const tabs = ['users', 'wards', 'settings'];
+    tabs.forEach(t => {
+      const btn = document.getElementById('btn-admin-tab-' + t);
+      const section = document.getElementById('admin-section-' + t);
+      if (btn) {
+        if (t === tabName) {
+          btn.className = 'admin-subtab-btn flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 border-[#0071e3] text-[#0059b5] transition-all';
+        } else {
+          btn.className = 'admin-subtab-btn flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 border-transparent text-[#5d5e60] hover:text-[#1b1b1d] hover:border-[#d2d2d7] transition-all';
+        }
+      }
+      if (section) {
+        if (t === tabName) section.classList.remove('hidden');
+        else section.classList.add('hidden');
+      }
+    });
+
+    if (tabName === 'users') {
+      this.loadAdminUsers();
+    } else if (tabName === 'wards') {
+      this.loadAdminWards();
+    } else if (tabName === 'settings') {
+      this.loadAdminSettings();
+    }
+  },
+
+  /**
+   * Master Admin Loader
+   */
   loadAdmin: function() {
-    // 1. Fetch current SLA & Break settings
+    this.loadAdminUsers();
+    this.loadAdminWards();
+    this.loadAdminSettings();
+  },
+
+  // -------------------------------------------------------------------------
+  // USER & ALLOWLIST MANAGEMENT
+  // -------------------------------------------------------------------------
+
+  /**
+   * Loads users allowlist and populates admin user table
+   */
+  loadAdminUsers: function() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          App.adminUsers = res.data;
+          const tbody = document.getElementById('admin-users-table-body');
+          const countEl = document.getElementById('admin-user-count');
+          const tabBadge = document.getElementById('admin-user-tab-badge');
+
+          if (countEl) countEl.textContent = res.data.length;
+          if (tabBadge) tabBadge.textContent = res.data.length;
+          if (!tbody) return;
+
+          if (res.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-[#86868b]">ยังไม่มีรายชื่อผู้ใช้งานในระบบ</td></tr>';
+            return;
+          }
+
+          let html = '';
+          res.data.forEach(u => {
+            // Role Badge styling
+            let roleBadgeClass = 'bg-[#f0edef] text-[#1b1b1d]';
+            let roleIcon = 'person';
+            if (u.role === 'SUPER_ADMIN') {
+              roleBadgeClass = 'bg-purple-100 text-purple-700 border border-purple-200';
+              roleIcon = 'shield_person';
+            } else if (u.role === 'PHARMACY') {
+              roleBadgeClass = 'bg-blue-100 text-blue-700 border border-blue-200';
+              roleIcon = 'local_pharmacy';
+            } else if (u.role === 'WARD') {
+              roleBadgeClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+              roleIcon = 'medical_services';
+            }
+
+            // Active Toggle Switch / Button
+            const isCurrentUser = App.currentUser && App.currentUser.email.toLowerCase() === u.email.toLowerCase();
+            const toggleHtml = u.active
+              ? `<button type="button" onclick="App.toggleUserActive('${u.email}', false)" ${isCurrentUser ? 'disabled title="ไม่สามารถระงับบัญชีตนเองได้"' : 'title="คลิกเพื่อปิดการใช้งาน"'} 
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#28cd41]/10 text-[#28cd41] border border-[#28cd41]/30 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all ${isCurrentUser ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}">
+                  <span class="w-2 h-2 rounded-full bg-[#28cd41]"></span>
+                  <span>เปิดใช้งาน</span>
+                 </button>`
+              : `<button type="button" onclick="App.toggleUserActive('${u.email}', true)" title="คลิกเพื่อเปิดใช้งาน"
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-[#28cd41]/10 hover:text-[#28cd41] hover:border-[#28cd41]/30 transition-all cursor-pointer">
+                  <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                  <span>ปิดใช้งาน</span>
+                 </button>`;
+
+            html += `
+              <tr class="hover:bg-[#f6f3f5] transition-colors">
+                <td class="py-3.5 px-4 font-mono font-bold text-[#0059b5]">
+                  <div class="flex items-center gap-2">
+                    <span>${u.email}</span>
+                    ${isCurrentUser ? '<span class="px-1.5 py-0.2 rounded text-[10px] bg-[#0071e3] text-white font-sans font-medium">คุณ</span>' : ''}
+                  </div>
+                </td>
+                <td class="py-3.5 px-4 font-medium text-[#1b1b1d]">${u.name || '-'}</td>
+                <td class="py-3.5 px-4">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${roleBadgeClass}">
+                    <span class="material-symbols-outlined text-xs">${roleIcon}</span>
+                    ${u.role}
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 font-medium text-[#414753]">${u.wardScope || '-'}</td>
+                <td class="py-3.5 px-4 text-center">${toggleHtml}</td>
+                <td class="py-3.5 px-4 text-[#86868b] font-numeric">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : 'ยังไม่เคยเข้าสู่ระบบ'}</td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                  <div class="inline-flex items-center gap-1">
+                    <button type="button" onclick="App.openEditUserModal('${u.email}')" 
+                      class="px-2.5 py-1 text-xs text-[#0071e3] hover:bg-[#0071e3]/10 rounded-md font-semibold transition-colors flex items-center gap-1">
+                      <span class="material-symbols-outlined text-sm">edit</span>
+                      แก้ไข
+                    </button>
+                    ${!isCurrentUser ? `
+                      <button type="button" onclick="App.deleteUser('${u.email}')" 
+                        class="px-2.5 py-1 text-xs text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-md font-semibold transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                        ลบ
+                      </button>
+                    ` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = html;
+        }
+      })
+      .apiListUsers();
+  },
+
+  /**
+   * Toggles a user's active status with instant feedback
+   */
+  toggleUserActive: function(email, targetActive) {
+    if (App.currentUser && App.currentUser.email.toLowerCase() === email.toLowerCase() && !targetActive) {
+      this.showToast('ไม่อนุญาตให้ปิดการใช้งานบัญชีของตนเอง', 'warning');
+      return;
+    }
+
+    const actionText = targetActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+    this.showToast(`กำลัง${actionText}ผู้ใช้ ${email}...`, 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast(res.message || `${actionText}ผู้ใช้เรียบร้อย`, 'success');
+          App.loadAdminUsers();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ไม่สามารถเปลี่ยนสถานะผู้ใช้: ' + err.message, 'error');
+      })
+      .apiToggleUserActive(email, targetActive);
+  },
+
+  /**
+   * Opens the Add User Modal in Create Mode
+   */
+  openAddUserModal: function() {
+    const modal = document.getElementById('modal-add-user');
+    const titleEl = document.getElementById('modal-user-title');
+    const iconEl = document.getElementById('modal-user-icon');
+    const emailInput = document.getElementById('modal-user-email');
+    const nameInput = document.getElementById('modal-user-name');
+    const roleSelect = document.getElementById('modal-user-role');
+    const activeCheck = document.getElementById('modal-user-active');
+    const isEditInput = document.getElementById('modal-user-is-edit');
+    const submitBtn = document.getElementById('btn-save-user-modal');
+
+    if (!modal) return;
+
+    if (titleEl) titleEl.textContent = 'เพิ่มผู้ใช้งานใหม่';
+    if (iconEl) iconEl.textContent = 'person_add';
+    if (isEditInput) isEditInput.value = 'false';
+    if (submitBtn) submitBtn.textContent = 'บันทึกผู้ใช้ใหม่';
+
+    if (emailInput) {
+      emailInput.value = '';
+      emailInput.disabled = false;
+    }
+    if (nameInput) nameInput.value = '';
+    if (roleSelect) roleSelect.value = 'WARD';
+    if (activeCheck) activeCheck.checked = true;
+
+    // Refresh Ward dropdown options
+    this.populateWardDropdownForModal();
+
+    modal.classList.remove('hidden');
+  },
+
+  /**
+   * Opens the User Modal in Edit Mode (prefilled with user data)
+   */
+  openEditUserModal: function(email) {
+    const user = this.adminUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) {
+      this.showToast('ไม่พบข้อมูลผู้ใช้งาน', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('modal-add-user');
+    const titleEl = document.getElementById('modal-user-title');
+    const iconEl = document.getElementById('modal-user-icon');
+    const emailInput = document.getElementById('modal-user-email');
+    const nameInput = document.getElementById('modal-user-name');
+    const roleSelect = document.getElementById('modal-user-role');
+    const wardSelect = document.getElementById('modal-user-ward');
+    const activeCheck = document.getElementById('modal-user-active');
+    const isEditInput = document.getElementById('modal-user-is-edit');
+    const submitBtn = document.getElementById('btn-save-user-modal');
+
+    if (!modal) return;
+
+    if (titleEl) titleEl.textContent = 'แก้ไขข้อมูลผู้ใช้งาน & สิทธิ์';
+    if (iconEl) iconEl.textContent = 'edit';
+    if (isEditInput) isEditInput.value = 'true';
+    if (submitBtn) submitBtn.textContent = 'บันทึกการแก้ไข';
+
+    if (emailInput) {
+      emailInput.value = user.email;
+      emailInput.disabled = true; // Email is the identifier
+    }
+    if (nameInput) nameInput.value = user.name || '';
+    if (roleSelect) roleSelect.value = user.role || 'WARD';
+    if (activeCheck) activeCheck.checked = user.active;
+
+    // Refresh and select current Ward
+    this.populateWardDropdownForModal(user.wardScope);
+
+    modal.classList.remove('hidden');
+  },
+
+  closeAddUserModal: function() {
+    const modal = document.getElementById('modal-add-user');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  /**
+   * Handles user creation or update
+   */
+  handleSaveUser: function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const emailInput = document.getElementById('modal-user-email');
+    const nameInput = document.getElementById('modal-user-name');
+    const roleSelect = document.getElementById('modal-user-role');
+    const wardSelect = document.getElementById('modal-user-ward');
+    const activeCheck = document.getElementById('modal-user-active');
+
+    const email = emailInput ? emailInput.value.trim() : '';
+    const name = nameInput ? nameInput.value.trim() : '';
+    const role = roleSelect ? roleSelect.value : 'WARD';
+    const ward = wardSelect ? wardSelect.value : 'ตึกพิเศษ';
+    const active = activeCheck ? activeCheck.checked : true;
+
+    if (!email || !role) {
+      this.showToast('กรุณาระบุอีเมลและบทบาท (Role)', 'warning');
+      return;
+    }
+
+    this.showToast('กำลังบันทึกข้อมูลผู้ใช้งาน...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.closeAddUserModal();
+          App.showToast(res.message || 'บันทึกผู้ใช้เรียบร้อย', 'success');
+          App.loadAdminUsers();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('บันทึกผู้ใช้ไม่สำเร็จ: ' + err.message, 'error');
+      })
+      .apiSaveUser({ email, name, role, wardScope: ward, active });
+  },
+
+  /**
+   * Deletes a user with confirmation
+   */
+  deleteUser: function(email) {
+    if (!confirm(`คุณต้องการลบผู้ใช้ "${email}" ออกจากระบบ MedReady ใช่หรือไม่?`)) return;
+    this.showToast(`กำลังลบผู้ใช้ ${email}...`, 'info');
+    
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast('ลบผู้ใช้สำเร็จ', 'success');
+          App.loadAdminUsers();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ลบผู้ใช้ไม่สำเร็จ: ' + err.message, 'error');
+      })
+      .apiDeleteUser(email);
+  },
+
+  // -------------------------------------------------------------------------
+  // WARD MANAGEMENT
+  // -------------------------------------------------------------------------
+
+  /**
+   * Loads Wards list from Settings and populates table & dropdowns
+   */
+  loadAdminWards: function() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          App.adminWards = res.data.wards || [];
+          const tbody = document.getElementById('admin-wards-table-body');
+          const countEl = document.getElementById('admin-ward-count');
+          const tabBadge = document.getElementById('admin-ward-tab-badge');
+
+          if (countEl) countEl.textContent = App.adminWards.length;
+          if (tabBadge) tabBadge.textContent = App.adminWards.length;
+
+          if (!tbody) return;
+
+          if (App.adminWards.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-[#86868b]">ไม่พบรายชื่อ Ward ในระบบ</td></tr>';
+            return;
+          }
+
+          let html = '';
+          App.adminWards.forEach(w => {
+            html += `
+              <tr class="hover:bg-[#f6f3f5] transition-colors">
+                <td class="py-3.5 px-4 font-semibold text-[#1b1b1d]">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg ${w.isDefault ? 'bg-[#0071e3]/10 text-[#0071e3]' : 'bg-[#f0edef] text-[#5d5e60]'} flex items-center justify-center">
+                      <span class="material-symbols-outlined text-base">domain</span>
+                    </div>
+                    <div>
+                      <div class="text-sm font-bold text-[#1b1b1d]">${w.name}</div>
+                      ${w.isDefault ? '<div class="text-[10px] text-[#0059b5] font-semibold">Ward เริ่มต้นของระบบ</div>' : ''}
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3.5 px-4 text-center">
+                  ${w.isDefault 
+                    ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/20"><span class="material-symbols-outlined text-xs">star</span> Ward เริ่มต้น</span>' 
+                    : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-[#f0edef] text-[#5d5e60]">หอผู้ป่วยทั่วไป</span>'}
+                </td>
+                <td class="py-3.5 px-4 text-center font-numeric font-semibold text-[#1b1b1d]">${w.userCount} คน</td>
+                <td class="py-3.5 px-4 text-center">
+                  <span class="font-numeric font-bold ${w.activeCaseCount > 0 ? 'text-[#0071e3]' : 'text-[#86868b]'}">${w.activeCaseCount} เคส</span>
+                </td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                  <div class="inline-flex items-center gap-1">
+                    ${!w.isDefault ? `
+                      <button type="button" onclick="App.setDefaultWard('${w.name}')" 
+                        class="px-2.5 py-1 text-xs text-[#0071e3] hover:bg-[#0071e3]/10 rounded-md font-semibold transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">check_circle</span>
+                        ตั้งเป็นค่าเริ่มต้น
+                      </button>
+                    ` : ''}
+                    <button type="button" onclick="App.openEditWardModal('${w.name}', ${w.isDefault})" 
+                      class="px-2.5 py-1 text-xs text-[#414753] hover:bg-[#eae7ea] rounded-md font-semibold transition-colors flex items-center gap-1">
+                      <span class="material-symbols-outlined text-sm">edit</span>
+                      แก้ไขชื่อ
+                    </button>
+                    ${App.adminWards.length > 1 ? `
+                      <button type="button" onclick="App.deleteWard('${w.name}')" 
+                        class="px-2.5 py-1 text-xs text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-md font-semibold transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                        ลบ
+                      </button>
+                    ` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = html;
+
+          // Propagate dynamic wards to all selects in the app
+          App.populateAllWardDropdowns(App.adminWards.map(w => w.name));
+        }
+      })
+      .apiListWards();
+  },
+
+  /**
+   * Opens Modal to Add a new Ward
+   */
+  openAddWardModal: function() {
+    const modal = document.getElementById('modal-ward-edit');
+    const titleEl = document.getElementById('modal-ward-title');
+    const iconEl = document.getElementById('modal-ward-icon');
+    const nameInput = document.getElementById('modal-ward-name');
+    const isDefaultCheck = document.getElementById('modal-ward-is-default');
+    const oldNameInput = document.getElementById('modal-ward-old-name');
+    const isEditInput = document.getElementById('modal-ward-is-edit');
+    const submitBtn = document.getElementById('btn-save-ward-modal');
+
+    if (!modal) return;
+
+    if (titleEl) titleEl.textContent = 'เพิ่ม Ward ใหม่';
+    if (iconEl) iconEl.textContent = 'domain_add';
+    if (isEditInput) isEditInput.value = 'false';
+    if (oldNameInput) oldNameInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (isDefaultCheck) isDefaultCheck.checked = false;
+    if (submitBtn) submitBtn.textContent = 'บันทึก Ward ใหม่';
+
+    modal.classList.remove('hidden');
+  },
+
+  /**
+   * Opens Modal to Edit an existing Ward
+   */
+  openEditWardModal: function(wardName, isDefault) {
+    const modal = document.getElementById('modal-ward-edit');
+    const titleEl = document.getElementById('modal-ward-title');
+    const iconEl = document.getElementById('modal-ward-icon');
+    const nameInput = document.getElementById('modal-ward-name');
+    const isDefaultCheck = document.getElementById('modal-ward-is-default');
+    const oldNameInput = document.getElementById('modal-ward-old-name');
+    const isEditInput = document.getElementById('modal-ward-is-edit');
+    const submitBtn = document.getElementById('btn-save-ward-modal');
+
+    if (!modal) return;
+
+    if (titleEl) titleEl.textContent = 'แก้ไขชื่อ Ward';
+    if (iconEl) iconEl.textContent = 'edit_square';
+    if (isEditInput) isEditInput.value = 'true';
+    if (oldNameInput) oldNameInput.value = wardName;
+    if (nameInput) nameInput.value = wardName;
+    if (isDefaultCheck) isDefaultCheck.checked = isDefault === true;
+    if (submitBtn) submitBtn.textContent = 'บันทึกการแก้ไข';
+
+    modal.classList.remove('hidden');
+  },
+
+  closeWardModal: function() {
+    const modal = document.getElementById('modal-ward-edit');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  /**
+   * Saves or Updates Ward
+   */
+  handleSaveWard: function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const isEdit = document.getElementById('modal-ward-is-edit')?.value === 'true';
+    const oldName = document.getElementById('modal-ward-old-name')?.value || '';
+    const newName = document.getElementById('modal-ward-name')?.value.trim() || '';
+    const isDefault = document.getElementById('modal-ward-is-default')?.checked;
+
+    if (!newName) {
+      this.showToast('กรุณาระบุชื่อ Ward / หอผู้ป่วย', 'warning');
+      return;
+    }
+    if (newName.includes(',')) {
+      this.showToast('ชื่อ Ward ห้ามมีเครื่องหมายจุลภาค (,)', 'warning');
+      return;
+    }
+
+    this.showToast('กำลังบันทึก Ward...', 'info');
+
+    if (isEdit) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success) {
+            if (isDefault) {
+              google.script.run.apiSetDefaultWard(newName);
+            }
+            App.closeWardModal();
+            App.showToast(res.message || 'แก้ไขชื่อ Ward สำเร็จ', 'success');
+            App.loadAdminWards();
+            App.loadAdminUsers();
+          } else {
+            App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          App.showToast('แก้ไข Ward ไม่สำเร็จ: ' + err.message, 'error');
+        })
+        .apiUpdateWard(oldName, newName);
+    } else {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success) {
+            if (isDefault) {
+              google.script.run.apiSetDefaultWard(newName);
+            }
+            App.closeWardModal();
+            App.showToast(res.message || 'เพิ่ม Ward ใหม่สำเร็จ', 'success');
+            App.loadAdminWards();
+          } else {
+            App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          App.showToast('เพิ่ม Ward ไม่สำเร็จ: ' + err.message, 'error');
+        })
+        .apiAddWard(newName);
+    }
+  },
+
+  /**
+   * Deletes a Ward
+   */
+  deleteWard: function(wardName) {
+    if (!confirm(`คุณต้องการลบ Ward "${wardName}" ออกจากระบบใช่หรือไม่?\n(ผู้ใช้งานที่สังกัด Ward นี้จะถูกย้ายไปยัง Ward เริ่มต้นอัตโนมัติ)`)) return;
+    
+    this.showToast(`กำลังลบ Ward ${wardName}...`, 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast(res.message || 'ลบ Ward สำเร็จ', 'success');
+          App.loadAdminWards();
+          App.loadAdminUsers();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ลบ Ward ไม่สำเร็จ: ' + err.message, 'error');
+      })
+      .apiDeleteWard(wardName);
+  },
+
+  /**
+   * Sets default Ward
+   */
+  setDefaultWard: function(wardName) {
+    this.showToast(`กำลังตั้ง "${wardName}" เป็น Ward เริ่มต้น...`, 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast(res.message || 'ตั้งเป็น Ward เริ่มต้นสำเร็จ', 'success');
+          App.loadAdminWards();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ไม่สามารถตั้งค่า: ' + err.message, 'error');
+      })
+      .apiSetDefaultWard(wardName);
+  },
+
+  /**
+   * Populates all Ward Dropdowns dynamically across the whole application
+   */
+  populateAllWardDropdowns: function(wardNames) {
+    if (!wardNames || !Array.isArray(wardNames)) return;
+
+    // 1. Board Filter Dropdown
+    const boardWardSelect = document.getElementById('board-ward-filter');
+    if (boardWardSelect) {
+      const currentVal = boardWardSelect.value;
+      let optHtml = '<option value="ALL">ทุก Ward</option>';
+      wardNames.forEach(w => {
+        optHtml += `<option value="${w}">${w}</option>`;
+      });
+      boardWardSelect.innerHTML = optHtml;
+      if (wardNames.includes(currentVal) || currentVal === 'ALL') {
+        boardWardSelect.value = currentVal;
+      }
+    }
+
+    // 2. User Modal Dropdown
+    this.populateWardDropdownForModal();
+  },
+
+  populateWardDropdownForModal: function(selectedWard) {
+    const userWardSelect = document.getElementById('modal-user-ward');
+    if (!userWardSelect) return;
+
+    const wards = App.adminWards && App.adminWards.length > 0 
+      ? App.adminWards.map(w => w.name)
+      : ['ตึกพิเศษ', 'Ward 1', 'Ward 2', 'Ward 3'];
+
+    let optHtml = '';
+    wards.forEach(w => {
+      optHtml += `<option value="${w}">${w}</option>`;
+    });
+    optHtml += '<option value="ALL">ALL (ทุก Ward)</option>';
+    userWardSelect.innerHTML = optHtml;
+
+    if (selectedWard) {
+      userWardSelect.value = selectedWard;
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // SLA & BREAK SETTINGS
+  // -------------------------------------------------------------------------
+
+  /**
+   * Loads SLA & Break settings values into form inputs
+   */
+  loadAdminSettings: function() {
     google.script.run
       .withSuccessHandler(function(settings) {
         if (settings) {
@@ -1615,42 +2224,6 @@ const App = {
         }
       })
       .apiGetSettingsPublic();
-
-    // 2. Fetch Users allowlist
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.success && res.data) {
-          const tbody = document.getElementById('admin-users-table-body');
-          const countEl = document.getElementById('admin-user-count');
-          if (countEl) countEl.textContent = res.data.length + ' คน';
-          if (!tbody) return;
-
-          let html = '';
-          res.data.forEach(u => {
-            html += `
-              <tr class="hover:bg-[#f6f3f5] transition-colors">
-                <td class="py-3 px-4 font-mono text-[#0059b5] font-semibold">${u.email}</td>
-                <td class="py-3 px-4 font-medium">${u.name}</td>
-                <td class="py-3 px-4">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f0edef] text-[#1b1b1d]">${u.role}</span>
-                </td>
-                <td class="py-3 px-4">${u.wardScope}</td>
-                <td class="py-3 px-4">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.active ? 'bg-[#28cd41]/10 text-[#28cd41]' : 'bg-[#ff3b30]/10 text-[#ff3b30]'}">
-                    ${u.active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td class="py-3 px-4 text-[#86868b]">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('th-TH') : '-'}</td>
-                <td class="py-3 px-4 text-right">
-                  <button onclick="App.deleteUser('${u.email}')" class="px-2.5 py-1 text-xs text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded font-medium transition-colors">ลบ</button>
-                </td>
-              </tr>
-            `;
-          });
-          tbody.innerHTML = html;
-        }
-      })
-      .apiListUsers();
   },
 
   handleSaveSettings: function(e) {
@@ -1699,64 +2272,6 @@ const App = {
         BREAK_TIME_START: breakStart,
         BREAK_TIME_END: breakEnd
       });
-  },
-
-  showAddUserModal: function() {
-    document.getElementById('modal-add-user').classList.remove('hidden');
-  },
-
-  closeAddUserModal: function() {
-    document.getElementById('modal-add-user').classList.add('hidden');
-  },
-
-  handleSaveUser: function(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    const email = document.getElementById('modal-user-email').value.trim();
-    const name = document.getElementById('modal-user-name').value.trim();
-    const role = document.getElementById('modal-user-role').value;
-    const ward = document.getElementById('modal-user-ward').value;
-    const active = document.getElementById('modal-user-active').checked;
-
-    if (!email || !role) {
-      this.showToast('กรุณาระบุอีเมลและบทบาท', 'warning');
-      return;
-    }
-
-    this.showToast('กำลังบันทึกข้อมูลผู้ใช้...', 'info');
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.success) {
-          App.closeAddUserModal();
-          App.showToast('บันทึกผู้ใช้เรียบร้อย', 'success');
-          document.getElementById('form-add-user').reset();
-          App.loadAdmin();
-        } else {
-          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
-        }
-      })
-      .withFailureHandler(function(err) {
-        App.showToast('บันทึกผู้ใช้ไม่สำเร็จ: ' + err.message, 'error');
-      })
-      .apiSaveUser({ email, name, role, wardScope: ward, active });
-  },
-
-  deleteUser: function(email) {
-    if (!confirm(`คุณต้องการลบผู้ใช้ ${email} ออกจากระบบใช่หรือไม่?`)) return;
-    this.showToast('กำลังลบผู้ใช้...', 'info');
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.success) {
-          App.showToast('ลบผู้ใช้สำเร็จ', 'success');
-          App.loadAdmin();
-        } else {
-          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
-        }
-      })
-      .withFailureHandler(function(err) {
-        App.showToast('ลบผู้ใช้ไม่สำเร็จ: ' + err.message, 'error');
-      })
-      .apiDeleteUser(email);
   }
 };
 
