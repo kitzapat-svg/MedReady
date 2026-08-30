@@ -93,14 +93,72 @@ function formatThaiDateTime(date) {
 }
 
 /**
- * Calculate duration in minutes between two dates
+ * Calculate overlap in milliseconds between [start, end] and daily break windows [breakStart, breakEnd]
  */
-function getDurationMinutes(startDate, endDate) {
+function calculateBreakOverlapMs(startDate, endDate, breakStartStr, breakEndStr) {
+  try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() <= start.getTime()) return 0;
+
+    const startParts = String(breakStartStr || '12:00').trim().split(':');
+    const endParts = String(breakEndStr || '13:00').trim().split(':');
+    const startHour = parseInt(startParts[0], 10) || 12;
+    const startMin = parseInt(startParts[1], 10) || 0;
+    const endHour = parseInt(endParts[0], 10) || 13;
+    const endMin = parseInt(endParts[1], 10) || 0;
+
+    let totalOverlapMs = 0;
+    const current = new Date(start.getTime());
+    current.setHours(0, 0, 0, 0);
+
+    const lastDay = new Date(end.getTime());
+    lastDay.setHours(0, 0, 0, 0);
+
+    while (current.getTime() <= lastDay.getTime()) {
+      const breakStart = new Date(current.getTime());
+      breakStart.setHours(startHour, startMin, 0, 0);
+
+      const breakEnd = new Date(current.getTime());
+      breakEnd.setHours(endHour, endMin, 0, 0);
+
+      if (breakEnd > breakStart) {
+        const windowStart = Math.max(start.getTime(), breakStart.getTime());
+        const windowEnd = Math.min(end.getTime(), breakEnd.getTime());
+        if (windowEnd > windowStart) {
+          totalOverlapMs += (windowEnd - windowStart);
+        }
+      }
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return totalOverlapMs;
+  } catch (e) {
+    return 0;
+  }
+}
+
+/**
+ * Calculate duration in minutes between two dates, optionally excluding break/lunch time
+ * @param {Date|string} startDate
+ * @param {Date|string} endDate
+ * @param {Object} [breakConfig] - { enabled: boolean|string, start: string, end: string }
+ */
+function getDurationMinutes(startDate, endDate, breakConfig) {
   if (!startDate) return null;
-  const start = new Date(startDate).getTime();
-  const end = endDate ? new Date(endDate).getTime() : new Date().getTime();
-  if (isNaN(start) || isNaN(end) || end < start) return 0;
-  return Math.round((end - start) / (1000 * 60));
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() < start.getTime()) return 0;
+
+  let durationMs = end.getTime() - start.getTime();
+
+  if (breakConfig && (breakConfig.enabled === true || breakConfig.enabled === 'true') && breakConfig.start && breakConfig.end) {
+    const breakOverlapMs = calculateBreakOverlapMs(start, end, breakConfig.start, breakConfig.end);
+    durationMs = Math.max(0, durationMs - breakOverlapMs);
+  }
+
+  return Math.round(durationMs / (1000 * 60));
 }
 
 /**

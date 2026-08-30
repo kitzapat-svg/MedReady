@@ -441,24 +441,52 @@
     </button>
   </div>
 
-  <!-- SLA Settings Card -->
+  <!-- SLA & Break Time Settings Card -->
   <div class="medready-card p-6">
     <h2 class="font-display text-base font-semibold text-[#1b1b1d] mb-4 flex items-center gap-2">
       <span class="material-symbols-outlined text-lg text-[#0071e3]">tune</span>
-      การตั้งค่าเกณฑ์เวลา SLA
+      การตั้งค่าเกณฑ์เวลา SLA & ช่วงเวลาพัก
     </h2>
-    <form id="form-settings" onsubmit="App.handleSaveSettings(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-xs">
-      <div class="space-y-1">
-        <label class="block font-medium text-[#414753]">เกณฑ์ปกติ (Normal Max - นาที)</label>
-        <input type="number" id="setting-sla-normal" required min="1" max="180" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+    <form id="form-settings" onsubmit="App.handleSaveSettings(event)" class="space-y-4 text-xs">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="block font-medium text-[#414753]">เกณฑ์ปกติ (Normal Max - นาที)</label>
+          <input type="number" id="setting-sla-normal" required min="1" max="180" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+          <p class="text-[11px] text-[#86868b]">เวลาสูงสุดของสถานะสีเขียว (ปกติ)</p>
+        </div>
+        <div class="space-y-1">
+          <label class="block font-medium text-[#414753]">เกณฑ์ใกล้ SLA (Approaching Max - นาที)</label>
+          <input type="number" id="setting-sla-approaching" required min="1" max="240" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+          <p class="text-[11px] text-[#86868b]">เวลาเตือนก่อนหลุด SLA (เกินเวลานี้จะเป็นสีแดง เกิน SLA)</p>
+        </div>
       </div>
-      <div class="space-y-1">
-        <label class="block font-medium text-[#414753]">เกณฑ์ใกล้ SLA (Approaching Max - นาที)</label>
-        <input type="number" id="setting-sla-approaching" required min="1" max="240" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+
+      <div class="p-3.5 bg-[#f6f3f5] rounded-xl border border-[#e4e2e4] space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="setting-break-enabled" class="rounded border-[#c5c6c8] text-[#0071e3] focus:ring-[#0071e3]">
+            <span class="font-semibold text-[#1b1b1d]">เปิดใช้งานการหักเวลาช่วงพักเที่ยง (Lunch Break Exclusion)</span>
+          </label>
+          <span class="material-symbols-outlined text-base text-[#86868b]">free_breakfast</span>
+        </div>
+        <p class="text-[11px] text-[#5d5e60]">
+          เมื่อเปิดใช้งาน ระบบจะหักลบเวลาช่วงพักออกจากระยะเวลารอคอยอัตโนมัติ เพื่อไม่ให้เคสที่ส่งก่อนเที่ยงหรือระหว่างพักหลุดเกณฑ์ SLA
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div class="space-y-1">
+            <label class="block font-medium text-[#414753]">เวลาเริ่มต้นพัก (Break Start)</label>
+            <input type="time" id="setting-break-start" value="12:00" class="w-full px-3 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+          </div>
+          <div class="space-y-1">
+            <label class="block font-medium text-[#414753]">เวลาสิ้นสุดพัก (Break End)</label>
+            <input type="time" id="setting-break-end" value="13:00" class="w-full px-3 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+          </div>
+        </div>
       </div>
-      <div>
-        <button type="submit" class="w-full py-2 bg-[#1b1b1d] hover:bg-black text-white rounded-lg text-xs font-medium transition-colors">
-          บันทึกเกณฑ์ SLA
+
+      <div class="flex justify-end pt-1">
+        <button type="submit" class="px-6 py-2.5 bg-[#1b1b1d] hover:bg-black text-white rounded-lg text-xs font-medium transition-colors shadow-sm">
+          บันทึกการตั้งค่า
         </button>
       </div>
     </form>

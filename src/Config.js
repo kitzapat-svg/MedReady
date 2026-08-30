@@ -100,6 +100,9 @@ const CONFIG = {
   DEFAULT_SETTINGS: {
     SLA_NORMAL_MAX: '30',
     SLA_APPROACHING_MAX: '45',
+    BREAK_TIME_ENABLED: 'true',
+    BREAK_TIME_START: '12:00',
+    BREAK_TIME_END: '13:00',
     WARD_OPTIONS: 'ตึกพิเศษ,Ward 1,Ward 2,Ward 3',
     DEFAULT_WARD: 'ตึกพิเศษ',
     POLL_INTERVAL_SECONDS: '30'

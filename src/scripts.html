@@ -1116,14 +1116,21 @@ const App = {
   // 10. ADMIN & SETTINGS MANAGEMENT
   // =========================================================================
   loadAdmin: function() {
-    // 1. Fetch current SLA settings
+    // 1. Fetch current SLA & Break settings
     google.script.run
       .withSuccessHandler(function(settings) {
         if (settings) {
           const normInput = document.getElementById('setting-sla-normal');
           const appInput = document.getElementById('setting-sla-approaching');
+          const breakEnabledInput = document.getElementById('setting-break-enabled');
+          const breakStartInput = document.getElementById('setting-break-start');
+          const breakEndInput = document.getElementById('setting-break-end');
+
           if (normInput) normInput.value = settings.SLA_NORMAL_MAX || '30';
           if (appInput) appInput.value = settings.SLA_APPROACHING_MAX || '45';
+          if (breakEnabledInput) breakEnabledInput.checked = settings.BREAK_TIME_ENABLED !== 'false';
+          if (breakStartInput) breakStartInput.value = settings.BREAK_TIME_START || '12:00';
+          if (breakEndInput) breakEndInput.value = settings.BREAK_TIME_END || '13:00';
         }
       })
       .apiGetSettingsPublic();
@@ -1169,32 +1176,47 @@ const App = {
     if (e && e.preventDefault) e.preventDefault();
     const normalInput = document.getElementById('setting-sla-normal');
     const appInput = document.getElementById('setting-sla-approaching');
+    const breakEnabledInput = document.getElementById('setting-break-enabled');
+    const breakStartInput = document.getElementById('setting-break-start');
+    const breakEndInput = document.getElementById('setting-break-end');
+
     if (!normalInput || !appInput) return;
 
     const normalVal = normalInput.value.trim();
     const appVal = appInput.value.trim();
+    const breakEnabled = breakEnabledInput ? String(breakEnabledInput.checked) : 'true';
+    const breakStart = breakStartInput ? breakStartInput.value.trim() : '12:00';
+    const breakEnd = breakEndInput ? breakEndInput.value.trim() : '13:00';
 
     if (!normalVal || !appVal || parseInt(normalVal, 10) <= 0 || parseInt(appVal, 10) <= 0) {
       this.showToast('กรุณากรอกเกณฑ์เวลา SLA ให้ถูกต้อง (มากกว่า 0 นาที)', 'warning');
       return;
     }
 
-    this.showToast('กำลังบันทึกเกณฑ์เวลา SLA...', 'info');
+    if (breakEnabled === 'true' && (!breakStart || !breakEnd)) {
+      this.showToast('กรุณาระบุเวลาเริ่มต้นและสิ้นสุดการพักให้ครบถ้วน', 'warning');
+      return;
+    }
+
+    this.showToast('กำลังบันทึกการตั้งค่า...', 'info');
 
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.success) {
-          App.showToast('บันทึกเกณฑ์เวลา SLA สำเร็จ', 'success');
+          App.showToast('บันทึกการตั้งค่าสำเร็จ', 'success');
         } else {
           App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
         }
       })
       .withFailureHandler(function(err) {
-        App.showToast('ไม่สามารถบันทึกเกณฑ์เวลา: ' + err.message, 'error');
+        App.showToast('ไม่สามารถบันทึกการตั้งค่า: ' + err.message, 'error');
       })
       .apiUpdateSettings({
         SLA_NORMAL_MAX: normalVal,
-        SLA_APPROACHING_MAX: appVal
+        SLA_APPROACHING_MAX: appVal,
+        BREAK_TIME_ENABLED: breakEnabled,
+        BREAK_TIME_START: breakStart,
+        BREAK_TIME_END: breakEnd
       });
   },
 

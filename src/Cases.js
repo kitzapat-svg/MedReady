@@ -212,6 +212,11 @@ function apiListCases(filters) {
     const settings = apiGetSettingsPublic();
     const normalMax = parseInt(settings.SLA_NORMAL_MAX || '30', 10);
     const approachingMax = parseInt(settings.SLA_APPROACHING_MAX || '45', 10);
+    const breakConfig = {
+      enabled: settings.BREAK_TIME_ENABLED !== 'false',
+      start: settings.BREAK_TIME_START || '12:00',
+      end: settings.BREAK_TIME_END || '13:00'
+    };
 
     const data = casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues();
     const flagsMap = getActiveIssueFlagsMap();
@@ -253,18 +258,18 @@ function apiListCases(filters) {
       }
 
       // Calculate elapsed durations
-      const elapsedMinutes = getDurationMinutes(submittedAt, dispensedAt || null);
+      const elapsedMinutes = getDurationMinutes(submittedAt, dispensedAt || null, breakConfig);
       
       // True Patient Waiting Time (dispensedAt - basketReceivedAt, or now - basketReceivedAt if in BASKET_RECEIVED)
       let patientWaitingMinutes = null;
       if (basketReceivedAt) {
-        patientWaitingMinutes = getDurationMinutes(basketReceivedAt, dispensedAt || null);
+        patientWaitingMinutes = getDurationMinutes(basketReceivedAt, dispensedAt || null, breakConfig);
       }
 
       // Preparation Lead Time (readyAt - submittedAt)
       let prepLeadMinutes = null;
       if (readyAt) {
-        prepLeadMinutes = getDurationMinutes(submittedAt, readyAt);
+        prepLeadMinutes = getDurationMinutes(submittedAt, readyAt, breakConfig);
       }
 
       // SLA Band calculation (measured from submittedAt for open cases)

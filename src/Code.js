@@ -267,6 +267,9 @@ function seedDefaultSettings(settingsSheet, results) {
   const defaults = [
     { key: 'SLA_NORMAL_MAX', value: CONFIG.DEFAULT_SETTINGS.SLA_NORMAL_MAX, desc: 'เกณฑ์เวลาปกติ (นาที) ค่าเริ่มต้น 30' },
     { key: 'SLA_APPROACHING_MAX', value: CONFIG.DEFAULT_SETTINGS.SLA_APPROACHING_MAX, desc: 'เกณฑ์เวลาใกล้ SLA (นาที) ค่าเริ่มต้น 45' },
+    { key: 'BREAK_TIME_ENABLED', value: CONFIG.DEFAULT_SETTINGS.BREAK_TIME_ENABLED, desc: 'เปิดใช้งานการหักเวลาพักเที่ยง (true/false)' },
+    { key: 'BREAK_TIME_START', value: CONFIG.DEFAULT_SETTINGS.BREAK_TIME_START, desc: 'เวลาเริ่มต้นพักเที่ยง (เช่น 12:00)' },
+    { key: 'BREAK_TIME_END', value: CONFIG.DEFAULT_SETTINGS.BREAK_TIME_END, desc: 'เวลาสิ้นสุดพักเที่ยง (เช่น 13:00)' },
     { key: 'WARD_OPTIONS', value: CONFIG.DEFAULT_SETTINGS.WARD_OPTIONS, desc: 'รายชื่อ Ward ในระบบ (คั่นด้วยจุลภาค)' },
     { key: 'DEFAULT_WARD', value: CONFIG.DEFAULT_SETTINGS.DEFAULT_WARD, desc: 'Ward เริ่มต้นสำหรับการเปิดใช้งานระบบ' },
     { key: 'POLL_INTERVAL_SECONDS', value: CONFIG.DEFAULT_SETTINGS.POLL_INTERVAL_SECONDS, desc: 'ระยะเวลา Polling ข้อมูลหน้าเว็บ (วินาที)' }

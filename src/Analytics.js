@@ -15,6 +15,11 @@ function apiGetAnalytics(timeRange) {
     const settings = apiGetSettingsPublic();
     const normalMax = parseInt(settings.SLA_NORMAL_MAX || '30', 10);
     const approachingMax = parseInt(settings.SLA_APPROACHING_MAX || '45', 10);
+    const breakConfig = {
+      enabled: settings.BREAK_TIME_ENABLED !== 'false',
+      start: settings.BREAK_TIME_START || '12:00',
+      end: settings.BREAK_TIME_END || '13:00'
+    };
 
     const emptyMetrics = {
       totalCases: 0,
@@ -101,28 +106,28 @@ function apiGetAnalytics(timeRange) {
 
       // Preparation Lead Time (readyAt - submittedAt)
       if (readyAt && submittedAt) {
-        const prepLead = getDurationMinutes(submittedAt, readyAt);
+        const prepLead = getDurationMinutes(submittedAt, readyAt, breakConfig);
         totalPrepLeadMins += prepLead;
         prepLeadCount++;
       }
 
       // Active Prep Time (readyAt - startedAt)
       if (readyAt && startedAt) {
-        const activePrep = getDurationMinutes(startedAt, readyAt);
+        const activePrep = getDurationMinutes(startedAt, readyAt, breakConfig);
         totalActivePrepMins += activePrep;
         activePrepCount++;
       }
 
       // True Patient Waiting Time (dispensedAt - basketReceivedAt)
       if (dispensedAt && basketReceivedAt) {
-        const patientWait = getDurationMinutes(basketReceivedAt, dispensedAt);
+        const patientWait = getDurationMinutes(basketReceivedAt, dispensedAt, breakConfig);
         totalPatientWaitMins += patientWait;
         patientWaitCount++;
       }
 
       // SLA classification
       const endTimestamp = dispensedAt || null;
-      const elapsed = getDurationMinutes(submittedAt, endTimestamp);
+      const elapsed = getDurationMinutes(submittedAt, endTimestamp, breakConfig);
       if (elapsed > approachingMax) {
         slaBreachedCount++;
       } else if (elapsed > normalMax) {
