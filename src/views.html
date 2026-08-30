@@ -1,0 +1,688 @@
+<!-- MedReady - Screen Views (Template Components) -->
+
+<!-- 1. AUTH / VERIFYING STATE -->
+<div id="view-auth-loading" class="flex flex-col items-center justify-center min-h-[70vh] text-center p-6">
+  <div class="w-16 h-16 rounded-full border-4 border-[#0071e3]/20 border-t-[#0071e3] animate-spin mb-6"></div>
+  <h2 class="font-display text-2xl font-semibold text-[#1b1b1d] mb-2">กำลังตรวจสอบสิทธิ์การใช้งาน</h2>
+  <p class="text-[#86868b] text-sm">กรุณารอสักครู่ ระบบกำลังยืนยันบัญชี Google กับฐานข้อมูล MedReady</p>
+</div>
+
+<!-- 2. ACCESS DENIED STATE -->
+<div id="view-auth-denied" class="hidden flex flex-col items-center justify-center min-h-[70vh] text-center p-6 max-w-md mx-auto">
+  <div class="w-16 h-16 rounded-full bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center mb-6">
+    <span class="material-symbols-outlined text-3xl">lock</span>
+  </div>
+  <h2 class="font-display text-2xl font-semibold text-[#1b1b1d] mb-2" id="denied-title">ไม่มีสิทธิ์เข้าใช้งาน</h2>
+  <p class="text-[#414753] text-sm mb-6" id="denied-message">อีเมลของคุณยังไม่ได้รับอนุญาตให้เข้าใช้งานระบบ MedReady กรุณาติดต่อหัวหน้างานหรือผู้ดูแลระบบเพื่อขอสิทธิ์</p>
+  <div class="bg-[#f0edef] p-4 rounded-lg w-full text-left mb-6 text-xs text-[#5d5e60]">
+    <div class="flex justify-between mb-1">
+      <span class="font-medium text-[#1b1b1d]">บัญชี Google:</span>
+      <span id="denied-email" class="font-mono text-[#0059b5]">-</span>
+    </div>
+    <div class="flex justify-between">
+      <span class="font-medium text-[#1b1b1d]">สถานะ:</span>
+      <span id="denied-status" class="text-[#ba1a1a] font-medium">ยังไม่อยู่ใน Allowlist</span>
+    </div>
+  </div>
+  <button onclick="window.location.reload()" class="px-6 py-2.5 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-sm font-medium transition-colors">
+    ลองใหม่อีกครั้ง
+  </button>
+</div>
+
+<!-- 3. WARD DASHBOARD ("ใครพร้อมรับยาแล้ว?") -->
+<div id="view-ward-dashboard" class="hidden space-y-8">
+  <!-- Top Headline / Framing -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0059b5] mb-1 font-display">
+        <span class="inline-block w-2 h-2 rounded-full bg-[#28cd41] animate-pulse"></span>
+        Ward Dashboard • <span id="ward-scope-badge">ตึกพิเศษ</span>
+      </div>
+      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">ใครพร้อมรับยาแล้ว?</h1>
+      <p class="text-[#86868b] text-sm mt-0.5">รายการยากลับบ้านที่พร้อมจ่ายและสามารถแจ้งญาติหรือผู้ป่วยมารับได้ทันที</p>
+    </div>
+    <div>
+      <button onclick="App.navigate('send-patient')" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-sm font-medium shadow-sm transition-all">
+        <span class="material-symbols-outlined text-lg">add_circle</span>
+        ส่งผู้ป่วยไปห้องยา
+      </button>
+    </div>
+  </div>
+
+  <!-- Primary Spotlight: READY Cases -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#28cd41]/10 text-[#28cd41] text-xs font-bold font-numeric" id="ward-ready-count">0</span>
+        <h2 class="font-display text-lg font-semibold text-[#1b1b1d]">พร้อมจ่ายแล้ว — ส่งผู้ป่วย/ญาติมารับยาได้</h2>
+      </div>
+      <span class="text-xs text-[#86868b]">อัปเดตล่าสุด: <span id="ward-ready-time" class="font-numeric">เมื่อสักครู่</span></span>
+    </div>
+
+    <!-- Ready Cards Grid -->
+    <div id="ward-ready-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Injected dynamically -->
+    </div>
+  </div>
+
+  <!-- Secondary Queues: In Progress & Submitted -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-[#e4e2e4]">
+    <!-- In Progress Queue -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="font-display text-sm font-semibold text-[#414753] uppercase tracking-wider flex items-center gap-2">
+          <span class="material-symbols-outlined text-base text-[#0071e3]">hourglass_top</span>
+          กำลังเตรียมยา (<span id="ward-inprog-count">0</span>)
+        </h3>
+      </div>
+      <div id="ward-inprog-list" class="space-y-2.5">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <!-- Newly Submitted Queue -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="font-display text-sm font-semibold text-[#414753] uppercase tracking-wider flex items-center gap-2">
+          <span class="material-symbols-outlined text-base text-[#86868b]">pending</span>
+          รอห้องยาดำเนินการ (<span id="ward-submitted-count">0</span>)
+        </h3>
+      </div>
+      <div id="ward-submitted-list" class="space-y-2.5">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. PHARMACY DASHBOARD ("ตอนนี้ต้องจัดการอะไร?") -->
+<div id="view-pharmacy-dashboard" class="hidden space-y-8">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0059b5] mb-1 font-display">
+        IPD Pharmacy Workflow
+      </div>
+      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">ตอนนี้ต้องจัดการอะไร?</h1>
+      <p class="text-[#86868b] text-sm mt-0.5">คิวงานตามลำดับความสำคัญและรายการที่ต้องเร่งดำเนินการเพื่อลดเวลารอ</p>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="flex items-center gap-3 text-xs">
+      <div class="bg-white px-3 py-2 rounded-lg border border-[#e4e2e4] text-center">
+        <div class="text-[#86868b]">รอเริ่มงาน</div>
+        <div class="font-display font-bold text-base text-[#1b1b1d]" id="pharm-stat-submitted">0</div>
+      </div>
+      <div class="bg-white px-3 py-2 rounded-lg border border-[#e4e2e4] text-center">
+        <div class="text-[#86868b]">กำลังจัดยา</div>
+        <div class="font-display font-bold text-base text-[#0071e3]" id="pharm-stat-inprog">0</div>
+      </div>
+      <div class="bg-white px-3 py-2 rounded-lg border border-[#e4e2e4] text-center">
+        <div class="text-[#86868b]">รอจ่ายยา (ตะกร้ามา)</div>
+        <div class="font-display font-bold text-base text-[#ff9f0a]" id="pharm-stat-basket">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Pills -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-1" id="pharmacy-tabs">
+    <button onclick="App.setPharmacyFilter('ALL')" class="pharm-tab-btn active px-4 py-1.5 rounded-full text-xs font-medium bg-[#1b1b1d] text-white transition-colors" data-filter="ALL">
+      ทั้งหมด (<span id="pharm-tab-count-all">0</span>)
+    </button>
+    <button onclick="App.setPharmacyFilter('SUBMITTED')" class="pharm-tab-btn px-4 py-1.5 rounded-full text-xs font-medium bg-white text-[#414753] border border-[#e4e2e4] hover:bg-[#f6f3f5] transition-colors" data-filter="SUBMITTED">
+      รอห้องยา (<span id="pharm-tab-count-sub">0</span>)
+    </button>
+    <button onclick="App.setPharmacyFilter('IN_PROGRESS')" class="pharm-tab-btn px-4 py-1.5 rounded-full text-xs font-medium bg-white text-[#414753] border border-[#e4e2e4] hover:bg-[#f6f3f5] transition-colors" data-filter="IN_PROGRESS">
+      กำลังเตรียมยา (<span id="pharm-tab-count-inp">0</span>)
+    </button>
+    <button onclick="App.setPharmacyFilter('READY')" class="pharm-tab-btn px-4 py-1.5 rounded-full text-xs font-medium bg-white text-[#414753] border border-[#e4e2e4] hover:bg-[#f6f3f5] transition-colors" data-filter="READY">
+      พร้อมจ่าย (<span id="pharm-tab-count-rdy">0</span>)
+    </button>
+    <button onclick="App.setPharmacyFilter('BASKET_RECEIVED')" class="pharm-tab-btn px-4 py-1.5 rounded-full text-xs font-medium bg-white text-[#414753] border border-[#e4e2e4] hover:bg-[#f6f3f5] transition-colors" data-filter="BASKET_RECEIVED">
+      รอจ่ายยา / ตะกร้ามาแล้ว (<span id="pharm-tab-count-bsk">0</span>)
+    </button>
+  </div>
+
+  <!-- Action Queue Cards List -->
+  <div id="pharmacy-queue-cards" class="space-y-3">
+    <!-- Injected dynamically -->
+  </div>
+</div>
+
+<!-- 5. MEDREADY BOARD (Operational Table / List Hybrid) -->
+<div id="view-board" class="hidden space-y-6">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">MedReady Board</h1>
+      <p class="text-[#86868b] text-sm mt-0.5">กระดานติดตามสถานะการเตรียมยาและการจ่ายยากลับบ้านแบบเรียลไทม์</p>
+    </div>
+    
+    <!-- Controls / Filters -->
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-lg text-[#86868b]">search</span>
+        <input type="text" id="board-search" placeholder="ค้นหา Case ID, AN, ห้อง..." oninput="App.filterBoard()" 
+          class="pl-9 pr-3 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs w-48 md:w-60 focus:outline-none focus:border-[#0071e3]">
+      </div>
+      
+      <select id="board-ward-filter" onchange="App.filterBoard()" class="bg-white border border-[#e4e2e4] rounded-lg px-3 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+        <option value="ALL">ทุก Ward</option>
+      </select>
+
+      <select id="board-state-filter" onchange="App.filterBoard()" class="bg-white border border-[#e4e2e4] rounded-lg px-3 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+        <option value="ALL">ทุกสถานะ</option>
+        <option value="ACTIVE">เฉพาะที่กำลังดำเนินการ</option>
+        <option value="SUBMITTED">รอห้องยาดำเนินการ</option>
+        <option value="IN_PROGRESS">กำลังเตรียมยา</option>
+        <option value="READY">พร้อมจ่าย</option>
+        <option value="BASKET_RECEIVED">รอจ่ายยา</option>
+        <option value="DISPENSED">จ่ายยาแล้ว</option>
+      </select>
+
+      <button onclick="App.refreshData(true)" class="p-2 bg-white border border-[#e4e2e4] rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors" title="รีเฟรชข้อมูล">
+        <span class="material-symbols-outlined text-base">sync</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Board Table / List Container -->
+  <div class="bg-white border border-[#e4e2e4] rounded-xl overflow-hidden shadow-sm">
+    <!-- Desktop Table View (Hidden on mobile) -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-[#f6f3f5] text-[#5d5e60] font-display font-medium border-b border-[#e4e2e4]">
+            <th class="py-3 px-4">Case ID</th>
+            <th class="py-3 px-4">AN / ผู้ป่วย</th>
+            <th class="py-3 px-4">Ward / ห้อง</th>
+            <th class="py-3 px-4">สถานะ & ขั้นตอน</th>
+            <th class="py-3 px-4">เวลารวม</th>
+            <th class="py-3 px-4">SLA</th>
+            <th class="py-3 px-4 text-right">ดำเนินการ</th>
+          </tr>
+        </thead>
+        <tbody id="board-table-body" class="divide-y divide-[#e4e2e4]">
+          <!-- Injected dynamically -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Card List View (Visible only on mobile) -->
+    <div id="board-mobile-list" class="block md:hidden divide-y divide-[#e4e2e4]">
+      <!-- Injected dynamically -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="board-empty" class="hidden py-16 text-center text-[#86868b]">
+      <span class="material-symbols-outlined text-4xl mb-2 text-[#cac4cf]">inbox</span>
+      <p class="text-sm">ไม่พบรายการเคสที่ตรงกับเงื่อนไข</p>
+    </div>
+  </div>
+</div>
+
+<!-- 6. SEND PATIENT (Ward Submission Form) -->
+<div id="view-send-patient" class="hidden max-w-xl mx-auto space-y-6">
+  <div class="flex items-center gap-3 pb-4 border-b border-[#e4e2e4]">
+    <button onclick="App.navigate('ward-dashboard')" class="p-1.5 hover:bg-[#f0edef] rounded-lg text-[#5d5e60]">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <div>
+      <h1 class="font-display text-2xl font-semibold text-[#1b1b1d]">ส่งผู้ป่วยไปห้องยา</h1>
+      <p class="text-xs text-[#86868b]">บันทึกข้อมูลเพื่อแจ้งห้องยาเตรียมจัดยากลับบ้าน</p>
+    </div>
+  </div>
+
+  <form id="form-send-patient" onsubmit="App.handleSendPatient(event)" class="space-y-6 bg-white p-6 rounded-xl border border-[#e4e2e4] shadow-sm">
+    <!-- Ward Scope (Locked for Ward role) -->
+    <div class="space-y-1.5">
+      <label class="block text-xs font-semibold text-[#1b1b1d] font-display uppercase tracking-wider">Ward / ตึก</label>
+      <div id="send-ward-display" class="w-full px-3.5 py-2.5 bg-[#f6f3f5] border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d] font-medium flex items-center justify-between">
+        <span id="send-ward-value">ตึกพิเศษ</span>
+        <span class="text-xs text-[#86868b] flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span> ล็อกตามสิทธิ์</span>
+      </div>
+      <select id="send-ward-select" class="hidden w-full px-3.5 py-2.5 bg-white border border-[#e4e2e4] rounded-lg text-sm focus:outline-none focus:border-[#0071e3]">
+      </select>
+    </div>
+
+    <!-- AN Input -->
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between">
+        <label class="block text-xs font-semibold text-[#1b1b1d] font-display uppercase tracking-wider">AN (Admission Number) *</label>
+        <span id="an-mask-preview" class="text-xs font-mono text-[#0059b5] font-medium">AN 69•••4438</span>
+      </div>
+      <input type="text" id="send-an" required placeholder="เช่น 6912344438 หรือ 6900123" oninput="App.formatAnPreview(this.value)"
+        class="w-full px-3.5 py-2.5 bg-white border border-[#e4e2e4] rounded-lg text-sm font-mono text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+      <p class="text-[11px] text-[#86868b]">ระบบจะเข้ารหัสและแสดงเฉพาะหมายเลขย่อเพื่อความปลอดภัยของข้อมูลผู้ป่วย</p>
+    </div>
+
+    <!-- Room / Bed Input -->
+    <div class="space-y-2">
+      <label class="block text-xs font-semibold text-[#1b1b1d] font-display uppercase tracking-wider">ห้อง / เตียง *</label>
+      
+      <!-- Quick Pills for ตึกพิเศษ (EX01 - EX30) -->
+      <div class="space-y-1.5">
+        <div class="text-[11px] text-[#5d5e60]">เลือกด่วน (ตึกพิเศษ):</div>
+        <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-[#fcf8fb] rounded-lg border border-[#e4e2e4]">
+          <button type="button" onclick="App.selectQuickRoom('EX01')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX01</button>
+          <button type="button" onclick="App.selectQuickRoom('EX02')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX02</button>
+          <button type="button" onclick="App.selectQuickRoom('EX03')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX03</button>
+          <button type="button" onclick="App.selectQuickRoom('EX04')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX04</button>
+          <button type="button" onclick="App.selectQuickRoom('EX05')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX05</button>
+          <button type="button" onclick="App.selectQuickRoom('EX06')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX06</button>
+          <button type="button" onclick="App.selectQuickRoom('EX08')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX08</button>
+          <button type="button" onclick="App.selectQuickRoom('EX10')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX10</button>
+          <button type="button" onclick="App.selectQuickRoom('EX12')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX12</button>
+          <button type="button" onclick="App.selectQuickRoom('EX14')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX14</button>
+          <button type="button" onclick="App.selectQuickRoom('EX18')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX18</button>
+          <button type="button" onclick="App.selectQuickRoom('EX20')" class="quick-room-btn px-2.5 py-1 text-xs bg-white border border-[#e4e2e4] rounded hover:border-[#0071e3] text-[#1b1b1d]">EX20</button>
+        </div>
+      </div>
+
+      <input type="text" id="send-room-bed" required placeholder="หรือพิมพ์ระบุ เช่น ห้อง 305 / เตียง 1"
+        class="w-full px-3.5 py-2.5 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+    </div>
+
+    <!-- Appointment Status -->
+    <div class="space-y-1.5">
+      <label class="block text-xs font-semibold text-[#1b1b1d] font-display uppercase tracking-wider">สถานะการนัดหมาย</label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-2 p-3 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg cursor-pointer hover:border-[#0071e3]">
+          <input type="radio" name="appointmentStatus" value="นัดหมายแล้ว" checked class="text-[#0071e3] focus:ring-0">
+          <span class="text-xs font-medium text-[#1b1b1d]">นัดหมายแล้ว</span>
+        </label>
+        <label class="flex items-center gap-2 p-3 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg cursor-pointer hover:border-[#0071e3]">
+          <input type="radio" name="appointmentStatus" value="ไม่มีนัด" class="text-[#0071e3] focus:ring-0">
+          <span class="text-xs font-medium text-[#1b1b1d]">ไม่มีนัด</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="pt-2">
+      <button type="submit" id="btn-submit-case" class="w-full py-3 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-sm font-semibold shadow-sm flex items-center justify-center gap-2 transition-all">
+        <span class="material-symbols-outlined text-lg">send</span>
+        ส่งให้ห้องยา
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- 7. ANALYTICS VIEW -->
+<div id="view-analytics" class="hidden space-y-8">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0059b5] mb-1 font-display">
+        Operational Intelligence
+      </div>
+      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">ประสิทธิภาพการจ่ายยา & เวลารอ</h1>
+      <p class="text-[#86868b] text-sm mt-0.5">การวิเคราะห์ระยะเวลาเตรียมยา เวลารอรับยาจริง และอัตราการบรรลุเป้าหมาย SLA</p>
+    </div>
+    <button onclick="App.loadAnalytics()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#414753] hover:bg-[#f6f3f5]">
+      <span class="material-symbols-outlined text-base">refresh</span> รีเฟรชสถิติ
+    </button>
+  </div>
+
+  <!-- KPI Headline Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- True Patient Waiting Time (The Most Important Metric!) -->
+    <div class="medready-card p-5 border-l-4 border-l-[#28cd41]">
+      <div class="text-xs font-medium text-[#5d5e60] mb-1">เวลารอรับยาจริงเฉลี่ย</div>
+      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-patient-wait">0 นาที</div>
+      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
+        <span class="material-symbols-outlined text-xs text-[#28cd41]">timer</span>
+        นับจากรับตะกร้าถึงจ่ายยา
+      </div>
+    </div>
+
+    <!-- Preparation Lead Time -->
+    <div class="medready-card p-5 border-l-4 border-l-[#0071e3]">
+      <div class="text-xs font-medium text-[#5d5e60] mb-1">ระยะเวลาเตรียมยาเฉลี่ย</div>
+      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-prep-lead">0 นาที</div>
+      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
+        <span class="material-symbols-outlined text-xs text-[#0071e3]">schedule</span>
+        นับจาก Ward ส่งถึงพร้อมจ่าย
+      </div>
+    </div>
+
+    <!-- SLA Breach Rate -->
+    <div class="medready-card p-5 border-l-4 border-l-[#ff9f0a]">
+      <div class="text-xs font-medium text-[#5d5e60] mb-1">อัตราเกิน SLA (&gt;45 นาที)</div>
+      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-sla-breach">0%</div>
+      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
+        <span class="material-symbols-outlined text-xs text-[#ff9f0a]">warning</span>
+        สัดส่วนเคสที่เกินเกณฑ์กำหนด
+      </div>
+    </div>
+
+    <!-- Total Cases -->
+    <div class="medready-card p-5">
+      <div class="text-xs font-medium text-[#5d5e60] mb-1">จำนวนเคสทั้งหมด</div>
+      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-total-cases">0</div>
+      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
+        <span class="material-symbols-outlined text-xs text-[#86868b]">inventory_2</span>
+        สำเร็จ: <span id="kpi-completed-cases" class="font-medium text-[#28cd41] ml-0.5">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage Breakdown Table & Chart Cards -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Stage Breakdown -->
+    <div class="medready-card p-6">
+      <h3 class="font-display text-base font-semibold text-[#1b1b1d] mb-4">การกระจายตามขั้นตอน (State Distribution)</h3>
+      <div class="space-y-3 text-xs" id="analytics-stage-list">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <!-- Ward Volume Breakdown -->
+    <div class="medready-card p-6">
+      <h3 class="font-display text-base font-semibold text-[#1b1b1d] mb-4">ปริมาณงานแยกตาม Ward</h3>
+      <div class="space-y-3 text-xs" id="analytics-ward-list">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. ADMIN: USER ACCESS & SETTINGS -->
+<div id="view-admin" class="hidden space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">จัดการผู้ใช้งาน & ตั้งค่าระบบ</h1>
+      <p class="text-[#86868b] text-sm mt-0.5">กำหนดสิทธิ์การเข้าใช้งาน (Gmail Allowlist) และเกณฑ์ SLA</p>
+    </div>
+    <button onclick="App.showAddUserModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium shadow-sm transition-all">
+      <span class="material-symbols-outlined text-sm">person_add</span>
+      เพิ่มผู้ใช้งาน
+    </button>
+  </div>
+
+  <!-- SLA Settings Card -->
+  <div class="medready-card p-6">
+    <h2 class="font-display text-base font-semibold text-[#1b1b1d] mb-4 flex items-center gap-2">
+      <span class="material-symbols-outlined text-lg text-[#0071e3]">tune</span>
+      การตั้งค่าเกณฑ์เวลา SLA
+    </h2>
+    <form id="form-settings" onsubmit="App.handleSaveSettings(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-xs">
+      <div class="space-y-1">
+        <label class="block font-medium text-[#414753]">เกณฑ์ปกติ (Normal Max - นาที)</label>
+        <input type="number" id="setting-sla-normal" required min="1" max="180" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+      </div>
+      <div class="space-y-1">
+        <label class="block font-medium text-[#414753]">เกณฑ์ใกล้ SLA (Approaching Max - นาที)</label>
+        <input type="number" id="setting-sla-approaching" required min="1" max="240" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm text-[#1b1b1d]">
+      </div>
+      <div>
+        <button type="submit" class="w-full py-2 bg-[#1b1b1d] hover:bg-black text-white rounded-lg text-xs font-medium transition-colors">
+          บันทึกเกณฑ์ SLA
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Users Table -->
+  <div class="bg-white border border-[#e4e2e4] rounded-xl overflow-hidden shadow-sm">
+    <div class="p-4 border-b border-[#e4e2e4] bg-[#f6f3f5] flex items-center justify-between">
+      <h3 class="font-display text-sm font-semibold text-[#1b1b1d]">รายชื่อผู้ใช้งานที่ได้รับสิทธิ์ (Allowlist)</h3>
+      <span class="text-xs text-[#86868b]" id="admin-user-count">0 คน</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="text-[#5d5e60] font-medium border-b border-[#e4e2e4] bg-[#fcf8fb]">
+            <th class="py-3 px-4">อีเมล (Gmail)</th>
+            <th class="py-3 px-4">ชื่อผู้ใช้</th>
+            <th class="py-3 px-4">บทบาท (Role)</th>
+            <th class="py-3 px-4">Ward Scope</th>
+            <th class="py-3 px-4">สถานะ</th>
+            <th class="py-3 px-4">เข้าสู่ระบบล่าสุด</th>
+            <th class="py-3 px-4 text-right">การกระทำ</th>
+          </tr>
+        </thead>
+        <tbody id="admin-users-table-body" class="divide-y divide-[#e4e2e4]">
+          <!-- Injected dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 9. CASE DETAIL DRAWER (Slide-over on Desktop / Fullscreen on Mobile) -->
+<div id="case-detail-drawer" class="fixed inset-0 z-50 overflow-hidden hidden">
+  <!-- Backdrop -->
+  <div class="drawer-backdrop absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity" onclick="App.closeCaseDetail()"></div>
+  
+  <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+    <div class="drawer-panel w-screen max-w-xl bg-white shadow-2xl flex flex-col transform transition-transform">
+      <!-- Drawer Header -->
+      <div class="p-5 border-b border-[#e4e2e4] flex items-center justify-between bg-[#fcf8fb]">
+        <div class="flex items-center gap-3">
+          <button onclick="App.closeCaseDetail()" class="p-1 hover:bg-[#e4e2e4] rounded-lg text-[#5d5e60]">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <div>
+            <div class="text-[11px] font-semibold tracking-wider uppercase text-[#0059b5] font-display">Case Detail</div>
+            <h2 class="font-display text-2xl font-bold text-[#1b1b1d] font-numeric" id="drawer-case-id">MR-0248</h2>
+          </div>
+        </div>
+
+        <div id="drawer-status-pill" class="px-3 py-1 rounded-full text-xs font-semibold">
+          พร้อมจ่าย
+        </div>
+      </div>
+
+      <!-- Drawer Content (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <!-- Patient Metadata Card -->
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] rounded-xl p-4 space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-[#86868b]">AN (Masked)</div>
+              <div class="font-mono text-sm font-semibold text-[#1b1b1d] mt-0.5" id="drawer-an">AN 69•••4438</div>
+            </div>
+            <div>
+              <div class="text-[#86868b]">ห้อง / เตียง</div>
+              <div class="text-sm font-semibold text-[#1b1b1d] mt-0.5" id="drawer-room-bed">ห้อง 305 / เตียง 1</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4 pt-2 border-t border-[#e4e2e4]/60">
+            <div>
+              <div class="text-[#86868b]">Ward</div>
+              <div class="text-xs font-medium text-[#1b1b1d] mt-0.5" id="drawer-ward">ตึกพิเศษ</div>
+            </div>
+            <div>
+              <div class="text-[#86868b]">การนัดหมาย</div>
+              <div class="text-xs font-medium text-[#1b1b1d] mt-0.5" id="drawer-appt">นัดหมายแล้ว</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Headline Durations (for Completed or Active Cases) -->
+        <div class="grid grid-cols-2 gap-3" id="drawer-durations-container">
+          <div class="bg-white border border-[#e4e2e4] p-3 rounded-lg">
+            <div class="text-[11px] text-[#86868b]">เวลาเตรียมยาพร้อมจ่าย</div>
+            <div class="font-display text-lg font-bold text-[#0071e3] mt-0.5 font-numeric" id="drawer-lead-time">-</div>
+          </div>
+          <div class="bg-white border border-[#e4e2e4] p-3 rounded-lg">
+            <div class="text-[11px] text-[#86868b]">เวลารอรับยาจริง</div>
+            <div class="font-display text-lg font-bold text-[#28cd41] mt-0.5 font-numeric" id="drawer-wait-time">-</div>
+          </div>
+        </div>
+
+        <!-- 5-Step Milestone Progress -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-medium text-[#414753]">ความคืบหน้า</span>
+            <span class="font-semibold text-[#0059b5] font-numeric" id="drawer-progress-percent">75%</span>
+          </div>
+          <div class="w-full bg-[#f0edef] h-2 rounded-full overflow-hidden">
+            <div id="drawer-progress-bar" class="bg-[#0071e3] h-full rounded-full transition-all duration-300" style="width: 75%"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-[#86868b] pt-1">
+            <span>ส่งแล้ว</span>
+            <span>เตรียมยา</span>
+            <span>พร้อมจ่าย</span>
+            <span>รับตะกร้า</span>
+            <span>จ่ายยาแล้ว</span>
+          </div>
+        </div>
+
+        <!-- Issue Flags Section -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-[#414753] uppercase tracking-wider font-display">แท็กปัญหา (Issue Flags)</span>
+            <button id="drawer-btn-add-flag" onclick="App.openIssueFlagModal()" class="text-xs text-[#0071e3] hover:underline flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs">flag</span> ติดแท็กปัญหา
+            </button>
+          </div>
+          <div id="drawer-flags-list" class="space-y-1.5">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+
+        <!-- Signature Timeline Component -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold text-[#414753] uppercase tracking-wider font-display">ประวัติและลำดับเวลา (Timeline)</h3>
+          <div id="drawer-timeline-list" class="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#e4e2e4]">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer Footer / Next Action CTA -->
+      <div class="p-4 border-t border-[#e4e2e4] bg-[#fcf8fb] flex items-center gap-3" id="drawer-footer-actions">
+        <!-- Injected dynamically based on role & state -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 10. NOTIFICATION CENTER DRAWER -->
+<div id="notifications-drawer" class="fixed inset-0 z-50 overflow-hidden hidden">
+  <div class="drawer-backdrop absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity" onclick="App.closeNotifications()"></div>
+  <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+    <div class="drawer-panel w-screen max-w-md bg-white shadow-2xl flex flex-col">
+      <div class="p-4 border-b border-[#e4e2e4] flex items-center justify-between bg-[#fcf8fb]">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-xl text-[#0071e3]">notifications</span>
+          <h2 class="font-display text-lg font-semibold text-[#1b1b1d]">การแจ้งเตือน</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="App.markAllNotificationsRead()" class="text-xs text-[#0071e3] hover:underline">อ่านทั้งหมด</button>
+          <button onclick="App.closeNotifications()" class="p-1 hover:bg-[#e4e2e4] rounded-lg text-[#5d5e60]">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 divide-y divide-[#e4e2e4]" id="notifications-list">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 11. ISSUE FLAG MODAL -->
+<div id="modal-issue-flag" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs hidden">
+  <div class="bg-white rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h3 class="font-display text-lg font-semibold text-[#1b1b1d] flex items-center gap-2">
+        <span class="material-symbols-outlined text-[#ba1a1a]">flag</span>
+        ติดแท็กปัญหา
+      </h3>
+      <button onclick="App.closeIssueFlagModal()" class="text-[#86868b] hover:text-[#1b1b1d]">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <p class="text-xs text-[#5d5e60]">เลือกประเภทปัญหาที่พบในการเตรียมยาสำหรับเคสนี้ เพื่อแจ้งเตือนทีม:</p>
+    <div class="space-y-2 text-xs">
+      <label class="flex items-center gap-2 p-2.5 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg cursor-pointer hover:border-[#0071e3]">
+        <input type="radio" name="flagType" value="รอประสาน Ward" checked class="text-[#0071e3]">
+        <span class="font-medium text-[#1b1b1d]">รอประสาน Ward</span>
+      </label>
+      <label class="flex items-center gap-2 p-2.5 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg cursor-pointer hover:border-[#0071e3]">
+        <input type="radio" name="flagType" value="รอแพทย์" class="text-[#0071e3]">
+        <span class="font-medium text-[#1b1b1d]">รอแพทย์</span>
+      </label>
+      <label class="flex items-center gap-2 p-2.5 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg cursor-pointer hover:border-[#0071e3]">
+        <input type="radio" name="flagType" value="รอแก้ไขคำสั่ง" class="text-[#0071e3]">
+        <span class="font-medium text-[#1b1b1d]">รอแก้ไขคำสั่ง</span>
+      </label>
+      <label class="flex items-center gap-2 p-2.5 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg cursor-pointer hover:border-[#0071e3]">
+        <input type="radio" name="flagType" value="อื่น ๆ" class="text-[#0071e3]">
+        <span class="font-medium text-[#1b1b1d]">อื่น ๆ</span>
+      </label>
+    </div>
+    <div class="flex gap-2 pt-2">
+      <button onclick="App.closeIssueFlagModal()" class="flex-1 py-2 bg-[#f0edef] hover:bg-[#e4e2e4] text-[#414753] rounded-lg text-xs font-medium">ยกเลิก</button>
+      <button onclick="App.submitIssueFlag()" class="flex-1 py-2 bg-[#ba1a1a] hover:bg-[#93000a] text-white rounded-lg text-xs font-semibold">ยืนยันติดแท็ก</button>
+    </div>
+  </div>
+</div>
+
+<!-- 12. WRITE CONFLICT MODAL -->
+<div id="modal-write-conflict" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs hidden">
+  <div class="bg-white rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center">
+    <div class="w-12 h-12 rounded-full bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center mx-auto">
+      <span class="material-symbols-outlined text-2xl">sync_problem</span>
+    </div>
+    <h3 class="font-display text-lg font-semibold text-[#1b1b1d]">ข้อมูลมีการเปลี่ยนแปลง</h3>
+    <p class="text-xs text-[#414753] leading-relaxed">
+      รายการนี้ถูกอัปเดตโดยผู้ใช้อื่นแล้ว<br/>
+      ระบบได้โหลดข้อมูลล่าสุดให้แล้ว
+    </p>
+    <button onclick="App.closeConflictModal()" class="w-full py-2.5 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-semibold">
+      เข้าใจแล้ว
+    </button>
+  </div>
+</div>
+
+<!-- 13. ADD USER MODAL (Admin) -->
+<div id="modal-add-user" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs hidden">
+  <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h3 class="font-display text-lg font-semibold text-[#1b1b1d]">เพิ่มผู้ใช้งาน / กำหนดสิทธิ์</h3>
+      <button onclick="App.closeAddUserModal()" class="text-[#86868b] hover:text-[#1b1b1d]">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="form-add-user" onsubmit="App.handleSaveUser(event)" class="space-y-4 text-xs">
+      <div class="space-y-1">
+        <label class="block font-medium text-[#414753]">อีเมล Google (Gmail / Google Workspace) *</label>
+        <input type="email" id="modal-user-email" required placeholder="name@hospital.local" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm">
+      </div>
+      <div class="space-y-1">
+        <label class="block font-medium text-[#414753]">ชื่อ-นามสกุล / ตำแหน่ง</label>
+        <input type="text" id="modal-user-name" placeholder="เช่น พยาบาลประจำตึกพิเศษ" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <label class="block font-medium text-[#414753]">บทบาท (Role) *</label>
+          <select id="modal-user-role" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm">
+            <option value="WARD">WARD (เจ้าหน้าที่ Ward)</option>
+            <option value="PHARMACY">PHARMACY (ห้องยา)</option>
+            <option value="SUPER_ADMIN">SUPER_ADMIN (ผู้ดูแลระบบ)</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="block font-medium text-[#414753]">Ward Scope *</label>
+          <select id="modal-user-ward" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm">
+            <option value="ตึกพิเศษ">ตึกพิเศษ</option>
+            <option value="Ward 1">Ward 1</option>
+            <option value="Ward 2">Ward 2</option>
+            <option value="Ward 3">Ward 3</option>
+            <option value="ALL">ALL (ทุก Ward)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 pt-1">
+        <input type="checkbox" id="modal-user-active" checked class="text-[#0071e3] rounded">
+        <label for="modal-user-active" class="font-medium text-[#1b1b1d]">เปิดใช้งานบัญชีนี้ (Active)</label>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="App.closeAddUserModal()" class="flex-1 py-2 bg-[#f0edef] text-[#414753] rounded-lg text-xs font-medium">ยกเลิก</button>
+        <button type="submit" class="flex-1 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-semibold">บันทึกผู้ใช้</button>
+      </div>
+    </form>
+  </div>
+</div>
+

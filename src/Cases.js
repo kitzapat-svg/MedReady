@@ -1,0 +1,357 @@
+/**
+ * MedReady - Case Operations & State Machine Engine
+ * Strictly enforces state sequence: SUBMITTED -> IN_PROGRESS -> READY -> BASKET_RECEIVED -> DISPENSED
+ * Protected by LockService and Write-Conflict detection.
+ */
+
+/**
+ * Creates a new case (Ward submission: "ส่งให้ห้องยา")
+ * Fields: an, roomBed, appointmentStatus, wardScope (optional, defaults to user's ward)
+ */
+function apiCreateCase(params) {
+  try {
+    const user = requireAuthorization([CONFIG.ROLES.WARD, CONFIG.ROLES.SUPER_ADMIN]);
+    
+    if (!params || !params.an || !params.roomBed) {
+      return errorResponse('กรุณาระบุ AN และ ห้อง/เตียง ให้ครบถ้วน', 'INVALID_INPUT');
+    }
+
+    const cleanAn = String(params.an).trim().replace(/[^0-9a-zA-Z]/g, '');
+    const cleanRoomBed = String(params.roomBed).trim();
+    const apptStatus = params.appointmentStatus === 'นัดหมายแล้ว' ? 'นัดหมายแล้ว' : 'ไม่มีนัด';
+    const wardScope = (user.role === CONFIG.ROLES.SUPER_ADMIN && params.wardScope) 
+      ? params.wardScope 
+      : (user.wardScope !== 'ALL' ? user.wardScope : (params.wardScope || 'ตึกพิเศษ'));
+
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      const casesSheet = ss.getSheetByName(CONFIG.SHEETS.CASES);
+      if (!casesSheet) {
+        throw new Error('ตาราง Cases ไม่พบในระบบ');
+      }
+
+      const caseId = generateNextCaseId(casesSheet);
+      const now = new Date().toISOString();
+
+      const newRow = [
+        caseId,                      // 1: Case ID
+        cleanAn,                     // 2: AN (Stored raw, masked in UI)
+        cleanRoomBed,                // 3: Room/Bed
+        apptStatus,                  // 4: Appointment Status
+        wardScope,                   // 5: Ward Scope
+        CONFIG.STATES.SUBMITTED.key, // 6: Current State
+        now,                         // 7: submittedAt
+        '',                          // 8: startedAt
+        '',                          // 9: readyAt
+        '',                          // 10: basketReceivedAt
+        '',                          // 11: dispensedAt
+        'NORMAL',                    // 12: SLA Snapshot
+        user.email,                  // 13: Created By
+        now                          // 14: Updated At
+      ];
+
+      casesSheet.appendRow(newRow);
+
+      // Write Timeline Audit Log
+      logTimelineEvent({
+        caseId: caseId,
+        event: 'WARD_SUBMITTED',
+        actor: user.name + ' (' + user.email + ')',
+        fromState: '-',
+        toState: CONFIG.STATES.SUBMITTED.key,
+        details: 'Ward ส่งข้อมูลผู้ป่วย (' + wardScope + ' ' + cleanRoomBed + ')'
+      });
+
+      return successResponse({
+        caseId: caseId,
+        maskedAn: maskAN(cleanAn),
+        roomBed: cleanRoomBed,
+        appointmentStatus: apptStatus,
+        wardScope: wardScope,
+        currentState: CONFIG.STATES.SUBMITTED.key,
+        submittedAt: now
+      }, 'ส่งข้อมูลให้ห้องยาเรียบร้อยแล้ว (' + caseId + ')');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'CREATE_CASE_ERROR');
+  }
+}
+
+/**
+ * Transition case to next state (Pharmacy workflow)
+ * Strict state machine: SUBMITTED -> IN_PROGRESS -> READY -> BASKET_RECEIVED -> DISPENSED
+ */
+function apiTransitionCase(params) {
+  try {
+    const user = requireAuthorization([CONFIG.ROLES.PHARMACY, CONFIG.ROLES.SUPER_ADMIN]);
+    
+    if (!params || !params.caseId || !params.targetState) {
+      return errorResponse('พารามิเตอร์ไม่ถูกต้อง (ต้องการ Case ID และ Target State)', 'INVALID_INPUT');
+    }
+
+    const caseId = String(params.caseId).trim();
+    const expectedCurrentState = params.expectedCurrentState ? String(params.expectedCurrentState).trim() : null;
+    const targetStateKey = String(params.targetState).trim();
+
+    const targetConfig = CONFIG.STATES[targetStateKey];
+    if (!targetConfig) {
+      return errorResponse('สถานะเป้าหมายไม่ถูกต้อง: ' + targetStateKey, 'INVALID_STATE');
+    }
+
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      const casesSheet = ss.getSheetByName(CONFIG.SHEETS.CASES);
+      const lastRow = casesSheet.getLastRow();
+      
+      if (lastRow <= 1) {
+        return errorResponse('ไม่พบรายการเคสในระบบ', 'NOT_FOUND');
+      }
+
+      const data = casesSheet.getRange(2, 1, lastRow - 1, 14).getValues();
+      let rowIndex = -1;
+      let currentRow = null;
+
+      for (let i = 0; i < data.length; i++) {
+        if (String(data[i][0] || '').trim() === caseId) {
+          rowIndex = i + 2;
+          currentRow = data[i];
+          break;
+        }
+      }
+
+      if (!currentRow || rowIndex === -1) {
+        return errorResponse('ไม่พบเคส ' + caseId, 'NOT_FOUND');
+      }
+
+      const dbCurrentState = String(currentRow[5] || '').trim();
+
+      // Write-Conflict check
+      if (expectedCurrentState && dbCurrentState !== expectedCurrentState) {
+        return errorResponse(
+          'รายการนี้ถูกอัปเดตโดยผู้ใช้อื่นแล้ว ระบบได้โหลดข้อมูลล่าสุดให้แล้ว',
+          'WRITE_CONFLICT',
+          true
+        );
+      }
+
+      // State machine validity check
+      const validNextState = CONFIG.NEXT_STATE[dbCurrentState];
+      if (validNextState !== targetStateKey) {
+        return errorResponse(
+          'ไม่สามารถเปลี่ยนสถานะจาก ' + (CONFIG.STATES[dbCurrentState] ? CONFIG.STATES[dbCurrentState].thai : dbCurrentState) + 
+          ' ไปยัง ' + targetConfig.thai + ' ได้ (ต้องเป็นไปตามลำดับขั้นตอนเท่านั้น)',
+          'INVALID_TRANSITION'
+        );
+      }
+
+      const now = new Date().toISOString();
+      const updateRange = casesSheet.getRange(rowIndex, 1, 1, 14);
+      const rowValues = [...currentRow];
+
+      // Update Current State
+      rowValues[5] = targetStateKey;
+      rowValues[13] = now; // Updated At
+
+      // Set state-specific timestamp column
+      if (targetStateKey === CONFIG.STATES.IN_PROGRESS.key) {
+        rowValues[7] = now; // startedAt
+      } else if (targetStateKey === CONFIG.STATES.READY.key) {
+        rowValues[8] = now; // readyAt
+      } else if (targetStateKey === CONFIG.STATES.BASKET_RECEIVED.key) {
+        rowValues[9] = now; // basketReceivedAt
+      } else if (targetStateKey === CONFIG.STATES.DISPENSED.key) {
+        rowValues[10] = now; // dispensedAt
+      }
+
+      updateRange.setValues([rowValues]);
+
+      // Log to Timeline
+      logTimelineEvent({
+        caseId: caseId,
+        event: 'STATE_CHANGED_' + targetStateKey,
+        actor: user.name + ' (' + user.email + ')',
+        fromState: dbCurrentState,
+        toState: targetStateKey,
+        details: 'เปลี่ยนสถานะเป็น ' + targetConfig.thai
+      });
+
+      // If transition to READY -> trigger notification to Ward
+      if (targetStateKey === CONFIG.STATES.READY.key) {
+        createReadyNotification({
+          caseId: caseId,
+          wardScope: String(rowValues[4]),
+          roomBed: String(rowValues[2])
+        });
+      }
+
+      return successResponse({
+        caseId: caseId,
+        fromState: dbCurrentState,
+        toState: targetStateKey,
+        timestamp: now
+      }, 'อัปเดตสถานะเป็น ' + targetConfig.thai + ' สำเร็จ');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'TRANSITION_ERROR');
+  }
+}
+
+/**
+ * Lists cases filtered by role and optional filters
+ */
+function apiListCases(filters) {
+  try {
+    const user = requireAuthorization();
+    const ss = getSpreadsheet();
+    const casesSheet = ss.getSheetByName(CONFIG.SHEETS.CASES);
+    
+    if (!casesSheet || casesSheet.getLastRow() <= 1) {
+      return successResponse([], 'ไม่มีข้อมูลเคส');
+    }
+
+    const settings = apiGetSettingsPublic();
+    const normalMax = parseInt(settings.SLA_NORMAL_MAX || '30', 10);
+    const approachingMax = parseInt(settings.SLA_APPROACHING_MAX || '45', 10);
+
+    const data = casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues();
+    const flagsMap = getActiveIssueFlagsMap();
+
+    const casesList = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const r = data[i];
+      const caseId = String(r[0] || '').trim();
+      if (!caseId) continue;
+
+      const rawAn = String(r[1] || '');
+      const roomBed = String(r[2] || '');
+      const apptStatus = String(r[3] || '');
+      const wardScope = String(r[4] || '');
+      const currentState = String(r[5] || 'SUBMITTED');
+      const submittedAt = r[6] ? toIsoString(r[6]) : '';
+      const startedAt = r[7] ? toIsoString(r[7]) : '';
+      const readyAt = r[8] ? toIsoString(r[8]) : '';
+      const basketReceivedAt = r[9] ? toIsoString(r[9]) : '';
+      const dispensedAt = r[10] ? toIsoString(r[10]) : '';
+      const updatedAt = r[13] ? toIsoString(r[13]) : submittedAt;
+
+      // Role-based Ward filter: WARD users only see their assigned ward (unless ALL)
+      if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
+        if (wardScope !== user.wardScope) {
+          continue;
+        }
+      }
+
+      // Optional client filter by ward
+      if (filters && filters.ward && filters.ward !== 'ALL' && wardScope !== filters.ward) {
+        continue;
+      }
+
+      // Optional client filter by state
+      if (filters && filters.state && filters.state !== 'ALL' && currentState !== filters.state) {
+        continue;
+      }
+
+      // Calculate elapsed durations
+      const elapsedMinutes = getDurationMinutes(submittedAt, dispensedAt || null);
+      
+      // True Patient Waiting Time (dispensedAt - basketReceivedAt, or now - basketReceivedAt if in BASKET_RECEIVED)
+      let patientWaitingMinutes = null;
+      if (basketReceivedAt) {
+        patientWaitingMinutes = getDurationMinutes(basketReceivedAt, dispensedAt || null);
+      }
+
+      // Preparation Lead Time (readyAt - submittedAt)
+      let prepLeadMinutes = null;
+      if (readyAt) {
+        prepLeadMinutes = getDurationMinutes(submittedAt, readyAt);
+      }
+
+      // SLA Band calculation (measured from submittedAt for open cases)
+      let slaBand = 'NORMAL';
+      let slaLabel = 'ปกติ';
+      if (currentState !== CONFIG.STATES.DISPENSED.key) {
+        if (elapsedMinutes > approachingMax) {
+          slaBand = 'BREACHED';
+          slaLabel = 'เกิน SLA';
+        } else if (elapsedMinutes > normalMax) {
+          slaBand = 'APPROACHING';
+          slaLabel = 'ใกล้ SLA';
+        }
+      }
+
+      const stateConfig = CONFIG.STATES[currentState] || CONFIG.STATES.SUBMITTED;
+      const nextStateKey = CONFIG.NEXT_STATE[currentState] || null;
+      const nextStateConfig = nextStateKey ? CONFIG.STATES[nextStateKey] : null;
+
+      casesList.push({
+        caseId: caseId,
+        maskedAn: maskAN(rawAn),
+        roomBed: roomBed,
+        appointmentStatus: apptStatus,
+        wardScope: wardScope,
+        currentState: currentState,
+        stateThai: stateConfig.thai,
+        progress: stateConfig.progress,
+        submittedAt: submittedAt,
+        startedAt: startedAt,
+        readyAt: readyAt,
+        basketReceivedAt: basketReceivedAt,
+        dispensedAt: dispensedAt,
+        updatedAt: updatedAt,
+        elapsedMinutes: elapsedMinutes,
+        elapsedText: formatDurationThai(elapsedMinutes),
+        prepLeadMinutes: prepLeadMinutes,
+        prepLeadText: prepLeadMinutes !== null ? formatDurationThai(prepLeadMinutes) : '-',
+        patientWaitingMinutes: patientWaitingMinutes,
+        patientWaitingText: patientWaitingMinutes !== null ? formatDurationThai(patientWaitingMinutes) : '-',
+        slaBand: slaBand,
+        slaLabel: slaLabel,
+        nextState: nextStateKey,
+        nextActionLabel: nextStateConfig ? nextStateConfig.buttonLabel : null,
+        flags: flagsMap[caseId] || []
+      });
+    }
+
+    // Sort: Open cases first (most urgent/longest waiting), then sorted by submittedAt desc
+    casesList.sort((a, b) => {
+      const aDone = a.currentState === CONFIG.STATES.DISPENSED.key ? 1 : 0;
+      const bDone = b.currentState === CONFIG.STATES.DISPENSED.key ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+    });
+
+    return successResponse(casesList);
+  } catch (err) {
+    return errorResponse(err.message, 'LIST_CASES_ERROR');
+  }
+}
+
+/**
+ * Gets full details and timeline of a single case
+ */
+function apiGetCaseDetail(caseId) {
+  try {
+    const user = requireAuthorization();
+    if (!caseId) return errorResponse('ระบุ Case ID', 'INVALID_INPUT');
+
+    const cleanCaseId = String(caseId).trim();
+    const listRes = apiListCases({ caseId: cleanCaseId });
+    if (!listRes.success) return listRes;
+
+    const matched = listRes.data.find(c => c.caseId === cleanCaseId);
+    if (!matched) return errorResponse('ไม่พบข้อมูลเคส ' + cleanCaseId, 'NOT_FOUND');
+
+    const timeline = getCaseTimeline(cleanCaseId);
+    const flags = getCaseIssueFlags(cleanCaseId);
+
+    return successResponse({
+      case: matched,
+      timeline: timeline,
+      flags: flags
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'GET_CASE_DETAIL_ERROR');
+  }
+}
+

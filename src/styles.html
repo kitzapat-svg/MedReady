@@ -1,0 +1,111 @@
+<style>
+  /* MedReady - Clinical Precision Theme Custom Styles */
+  :root {
+    --color-primary: #0059b5;
+    --color-primary-container: #0071e3;
+    --color-surface: #fcf8fb;
+    --color-surface-pure: #ffffff;
+    --color-text-main: #1b1b1d;
+    --color-text-muted: #86868b;
+    --color-border: #d2d2d7;
+    --color-ready: #28cd41;
+    --color-warning: #ff9f0a;
+    --color-critical: #ff3b30;
+  }
+
+  body {
+    font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--color-surface);
+    color: var(--color-text-main);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .font-display {
+    font-family: 'Hanken Grotesk', sans-serif;
+  }
+
+  .font-numeric {
+    font-family: 'Hanken Grotesk', monospace;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cac4cf;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #7a757f;
+  }
+
+  /* Material Symbols */
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+  }
+  .material-symbols-outlined.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
+  /* Card elevation */
+  .medready-card {
+    background-color: #ffffff;
+    border: 1px solid #e4e2e4;
+    border-radius: 12px;
+    transition: all 0.2s ease-in-out;
+  }
+  .medready-card-interactive:hover {
+    border-color: #0071e3;
+    box-shadow: 0 4px 20px -2px rgba(0, 113, 227, 0.12);
+  }
+
+  /* SLA Strip */
+  .sla-strip-normal { border-left: 4px solid var(--color-ready); }
+  .sla-strip-approaching { border-left: 4px solid var(--color-warning); }
+  .sla-strip-breached { border-left: 4px solid var(--color-critical); }
+
+  /* Milestone progress bar */
+  .milestone-step {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Skeleton animation */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #f0edef 25%, #faf8f9 50%, #f0edef 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+
+  /* Toast & Drawer animations */
+  .drawer-backdrop {
+    transition: opacity 0.25s ease-out;
+  }
+  .drawer-panel {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Hide number input spinners */
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+</style>
+

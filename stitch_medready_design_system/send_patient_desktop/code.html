@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Send Patient - MedReady</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#fcf8fb",
+                        "inverse-surface": "#303032",
+                        "on-secondary": "#ffffff",
+                        "surface-container-highest": "#e4e2e4",
+                        "primary-container": "#0071e3",
+                        "surface-container": "#f0edef",
+                        "tertiary-fixed": "#ffdbcb",
+                        "surface-container-low": "#f6f3f5",
+                        "on-tertiary-container": "#fffaf9",
+                        "on-primary-fixed": "#001b3f",
+                        "on-background": "#1b1b1d",
+                        "secondary-fixed-dim": "#c6c6c8",
+                        "on-secondary-fixed": "#1a1c1d",
+                        "on-primary-container": "#fcfbff",
+                        "outline": "#717785",
+                        "text-muted": "#86868B",
+                        "surface-tint": "#005cbb",
+                        "on-surface": "#1b1b1d",
+                        "on-tertiary-fixed": "#341000",
+                        "surface-container-high": "#eae7ea",
+                        "secondary-fixed": "#e2e2e4",
+                        "on-secondary-fixed-variant": "#454749",
+                        "tertiary-container": "#c25100",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb693",
+                        "inverse-on-surface": "#f3f0f2",
+                        "background": "#fcf8fb",
+                        "secondary": "#5d5e60",
+                        "surface-bright": "#fcf8fb",
+                        "inverse-primary": "#abc7ff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#7a3000",
+                        "primary-fixed-dim": "#abc7ff",
+                        "primary-fixed": "#d7e2ff",
+                        "on-secondary-container": "#616365",
+                        "surface-pure": "#FFFFFF",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#dcd9dc",
+                        "secondary-container": "#dfdfe1",
+                        "error": "#ba1a1a",
+                        "status-ready": "#28CD41",
+                        "surface-variant": "#e4e2e4",
+                        "outline-variant": "#c1c6d6",
+                        "on-primary-fixed-variant": "#00458f",
+                        "status-warning": "#FF9F0A",
+                        "primary": "#0059b5",
+                        "status-critical": "#FF3B30",
+                        "border-subtle": "#D2D2D7",
+                        "error-container": "#ffdad6",
+                        "on-surface-variant": "#414753",
+                        "on-tertiary": "#ffffff",
+                        "tertiary": "#9b3f00",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-mobile": "20px",
+                        "unit": "8px",
+                        "margin-desktop": "40px",
+                        "container-max": "1200px"
+                    },
+                    "fontFamily": {
+                        "numeric-data": ["Hanken Grotesk"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "display-id": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "label-caps": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "numeric-data": ["19px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "body-lg": ["17px", { "lineHeight": "26px", "fontWeight": "400" }],
+                        "display-id": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["26px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["15px", { "lineHeight": "22px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #F5F5F7; }
+        .input-clinical {
+            border: none;
+            border-bottom: 1px solid #D2D2D7;
+            background: transparent;
+            padding: 8px 0;
+            border-radius: 0;
+            transition: all 0.2s ease;
+        }
+        .input-clinical:focus {
+            outline: none;
+            border-bottom-color: #0071E3;
+            border-bottom-width: 2px;
+            box-shadow: none;
+        }
+        .form-card {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface antialiased bg-surface">
+<div class="flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden lg:flex flex-col h-full py-gutter px-4 bg-surface-container-low border-r border-border-subtle h-screen w-64 fixed left-0 top-0">
+<div class="mb-10 px-4">
+<div class="font-headline-md text-headline-md font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+                    MedReady
+                </div>
+<div class="font-label-caps text-label-caps text-text-muted mt-1 uppercase">Clinical Precision</div>
+</div>
+<div class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-secondary hover:bg-surface-container-high transition-all font-label-caps text-label-caps active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+<!-- Active State -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-primary font-bold bg-primary-container/10 font-label-caps text-label-caps active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="person_search" data-weight="fill" style="font-variation-settings: 'FILL' 1;">person_search</span>
+                    Patient Queue
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-secondary hover:bg-surface-container-high transition-all font-label-caps text-label-caps active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="medication">medication</span>
+                    Medication Log
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-secondary hover:bg-surface-container-high transition-all font-label-caps text-label-caps active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+</div>
+<div class="mt-auto">
+<button class="w-full bg-primary-container text-on-primary-container font-headline-md text-headline-md py-3 rounded-lg hover:opacity-90 transition-opacity flex justify-center items-center gap-2">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+                    Send Patient
+                </button>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 lg:ml-64 bg-background overflow-y-auto">
+<!-- TopAppBar (Mobile Fallback) -->
+<header class="lg:hidden flex items-center justify-between p-4 bg-surface/80 backdrop-blur-xl border-b border-border-subtle sticky top-0 z-10">
+<div class="font-headline-md text-headline-md font-bold text-primary">MedReady</div>
+<button class="text-secondary"><span class="material-symbols-outlined" data-icon="menu">menu</span></button>
+</header>
+<div class="max-w-3xl mx-auto py-10 px-6">
+<div class="mb-10">
+<h1 class="font-headline-lg text-headline-lg text-on-surface mb-2">Send Patient to Pharmacy</h1>
+<p class="font-body-lg text-body-lg text-text-muted">Initiate discharge or urgent medication request.</p>
+</div>
+<!-- Form Card -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle form-card relative overflow-hidden">
+<!-- Status Strip -->
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<form class="p-8 space-y-10">
+<!-- Section 1: Patient Identification -->
+<section>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-text-muted" data-icon="badge">badge</span>
+                                Patient Identification
+                            </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="flex flex-col relative">
+<label class="font-label-caps text-label-caps text-text-muted absolute top-0 text-[10px] transform -translate-y-2">Patient Name (Optional/Masked)</label>
+<input class="input-clinical font-body-lg text-body-lg text-on-surface w-full mt-2" placeholder="e.g., John Doe" type="text"/>
+</div>
+<div class="flex flex-col relative">
+<label class="font-label-caps text-label-caps text-text-muted absolute top-0 text-[10px] transform -translate-y-2">AN (Admission Number)</label>
+<input class="input-clinical font-numeric-data text-numeric-data text-on-surface w-full mt-2" placeholder="69•••4438" required="" type="text"/>
+</div>
+<div class="flex flex-col relative md:col-span-2">
+<label class="font-label-caps text-label-caps text-text-muted absolute top-0 text-[10px] transform -translate-y-2">Room / Bed</label>
+<select class="input-clinical font-body-lg text-body-lg text-on-surface w-full mt-2 appearance-none">
+<option disabled="" selected="" value="">Select Room/Bed</option>
+<option value="w1-101-a">Ward 1 - Room 101 - Bed A</option>
+<option value="w1-101-b">Ward 1 - Room 101 - Bed B</option>
+<option value="w2-205">Ward 2 - Room 205</option>
+</select>
+<span class="material-symbols-outlined absolute right-0 bottom-2 pointer-events-none text-text-muted">arrow_drop_down</span>
+</div>
+</div>
+</section>
+<hr class="border-border-subtle"/>
+<!-- Section 2 & 3: Medication & Appointment -->
+<section>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-text-muted" data-icon="prescriptions">prescriptions</span>
+                                        Priority Level
+                                    </h2>
+<div class="flex items-center gap-4">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input checked="" class="text-primary focus:ring-primary h-5 w-5 border-outline" name="priority" type="radio"/>
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Standard Discharge</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="text-status-critical focus:ring-status-critical h-5 w-5 border-outline" name="priority" type="radio"/>
+<span class="font-body-md text-body-md text-status-critical font-medium">Urgent Request</span>
+</label>
+</div>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-text-muted" data-icon="event">event</span>
+                                        Discharge Schedule
+                                    </h2>
+<div class="flex flex-col relative">
+<label class="font-label-caps text-label-caps text-text-muted absolute top-0 text-[10px] transform -translate-y-2">Date &amp; Time</label>
+<input class="input-clinical font-numeric-data text-numeric-data text-on-surface w-full mt-2" type="datetime-local"/>
+</div>
+</div>
+</div>
+</section>
+<hr class="border-border-subtle"/>
+<!-- Section 4: Notes -->
+<section>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-text-muted" data-icon="notes">notes</span>
+                                Special Instructions
+                            </h2>
+<div class="flex flex-col">
+<textarea class="w-full bg-surface border border-border-subtle rounded-lg p-4 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none h-32" placeholder="Enter any additional ward-to-pharmacy communication here..."></textarea>
+</div>
+</section>
+<!-- Submit Actions -->
+<div class="flex justify-end gap-4 pt-4">
+<button class="px-6 py-3 rounded-lg font-headline-md text-headline-md text-primary bg-secondary-fixed hover:bg-secondary-container transition-colors" type="button">
+                                Cancel
+                            </button>
+<button class="px-8 py-3 rounded-lg font-headline-md text-headline-md text-on-primary-container bg-primary-container hover:bg-primary transition-colors shadow-sm flex items-center gap-2" type="submit">
+                                ส่งคำขอ / Submit Request
+                                <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</form>
+</div>
+</div>
+</main>
+</div>
+</body></html>

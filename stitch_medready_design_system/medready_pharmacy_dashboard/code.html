@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-surface-pure dark:bg-inverse-surface" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MedReady Pharmacy Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&amp;family=Be+Vietnam+Pro:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-container": "#fcfbff",
+                    "on-surface": "#1b1b1d",
+                    "outline-variant": "#c1c6d6",
+                    "inverse-surface": "#303032",
+                    "surface-tint": "#005cbb",
+                    "on-error-container": "#93000a",
+                    "surface-container": "#f0edef",
+                    "on-secondary-fixed-variant": "#454749",
+                    "on-tertiary-container": "#fffaf9",
+                    "on-primary-fixed-variant": "#00458f",
+                    "on-tertiary": "#ffffff",
+                    "status-critical": "#FF3B30",
+                    "primary-container": "#0071e3",
+                    "text-muted": "#86868B",
+                    "surface-pure": "#FFFFFF",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed": "#001b3f",
+                    "tertiary-fixed": "#ffdbcb",
+                    "on-error": "#ffffff",
+                    "secondary": "#5d5e60",
+                    "surface-bright": "#fcf8fb",
+                    "surface": "#fcf8fb",
+                    "status-ready": "#28CD41",
+                    "primary-fixed": "#d7e2ff",
+                    "surface-container-low": "#f6f3f5",
+                    "primary": "#0059b5",
+                    "on-background": "#1b1b1d",
+                    "surface-dim": "#dcd9dc",
+                    "on-tertiary-fixed": "#341000",
+                    "tertiary-container": "#c25100",
+                    "status-warning": "#FF9F0A",
+                    "on-secondary": "#ffffff",
+                    "surface-container-highest": "#e4e2e4",
+                    "secondary-fixed": "#e2e2e4",
+                    "inverse-on-surface": "#f3f0f2",
+                    "surface-variant": "#e4e2e4",
+                    "tertiary": "#9b3f00",
+                    "on-primary": "#ffffff",
+                    "on-surface-variant": "#414753",
+                    "border-subtle": "#D2D2D7",
+                    "outline": "#717785",
+                    "primary-fixed-dim": "#abc7ff",
+                    "tertiary-fixed-dim": "#ffb693",
+                    "background": "#fcf8fb",
+                    "on-secondary-fixed": "#1a1c1d",
+                    "inverse-primary": "#abc7ff",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed-variant": "#7a3000",
+                    "secondary-fixed-dim": "#c6c6c8",
+                    "error": "#ba1a1a",
+                    "on-secondary-container": "#616365",
+                    "secondary-container": "#dfdfe1",
+                    "surface-container-high": "#eae7ea"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1200px",
+                    "unit": "8px",
+                    "margin-desktop": "40px",
+                    "margin-mobile": "20px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "numeric-data": ["Hanken Grotesk"],
+                    "display-id": ["Hanken Grotesk"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "headline-lg-mobile": ["Hanken Grotesk"],
+                    "body-md": ["Be Vietnam Pro"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "label-caps": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "numeric-data": ["19px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "display-id": ["44px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["26px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .timeline-step { position: relative; }
+        .timeline-step:not(:last-child)::after {
+            content: ''; position: absolute; top: 12px; left: 24px; width: calc(100% - 32px); height: 2px;
+            background-color: #dfdfe1; z-index: 1;
+        }
+        .timeline-step.completed:not(:last-child)::after { background-color: #0071e3; }
+        .timeline-dot { position: relative; z-index: 2; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .timeline-dot.completed { background-color: #0071e3; }
+        .timeline-dot.current { border: 2px solid #0071e3; background-color: white; }
+        .timeline-dot.pending { border: 2px solid #dfdfe1; background-color: white; }
+        
+        .status-strip-critical { border-left: 4px solid #FF3B30; }
+        .status-strip-warning { border-left: 4px solid #FF9F0A; }
+        .status-strip-ready { border-left: 4px solid #28CD41; }
+        .status-strip-new { border-left: 4px solid #0071e3; }
+    </style>
+</head>
+<body class="font-body-md text-on-surface bg-surface-pure dark:bg-inverse-surface h-full flex antialiased">
+<!-- SideNavBar (Desktop) -->
+<nav aria-label="Sidebar Navigation" class="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col border-r border-border-subtle dark:border-outline-variant bg-surface-pure dark:bg-inverse-surface text-primary dark:text-inverse-primary">
+<div class="flex flex-col h-full py-6 px-4">
+<div class="mb-8 px-2 flex items-center gap-3">
+<img alt="Hospital Logo" class="w-10 h-10 object-contain rounded-lg" data-alt="A clean, minimalist hospital logo in monochrome, designed for a modern healthcare application interface, conveying trust and precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpcZ1pzoGAZowReqNqXDPTq8wT_utAzd-1fPG6Iibqgqf6ZMsvBGVsQtHUkFddCoSktMSmo0F7EiJgjGOJEBY03LUJXiQF2OJmEahmujT7R5NU238Jn0x5OBp0c2wr4On09gBymzOg-eQaerInKqCzlerWvizFmhRcxkwS9dpbQSjWrv0JOlev0HWH7HB0KQwRoteg8L_kgb2lHYxPcb-eYwTftLDPsxJ8RBt3CKc-aSJDrM7UOCkSew"/>
+<div>
+<h1 class="text-headline-md font-headline-md font-bold text-primary dark:text-inverse-primary leading-tight">Hospital Pharmacy</h1>
+<p class="text-label-caps font-label-caps text-secondary dark:text-secondary-fixed-dim">Discharge Workflow</p>
+</div>
+</div>
+<ul class="flex flex-col gap-2 flex-grow">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-primary dark:text-inverse-primary font-bold border-r-4 border-primary dark:border-inverse-primary bg-primary-container/10 transition-opacity opacity-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-label-caps font-label-caps">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-inverse-primary hover:bg-surface-container-low dark:hover:bg-on-surface-variant/10 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">clinical_notes</span>
+<span class="text-label-caps font-label-caps">MedReady Board</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-inverse-primary hover:bg-surface-container-low dark:hover:bg-on-surface-variant/10 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-label-caps font-label-caps">Analytics</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-inverse-primary hover:bg-surface-container-low dark:hover:bg-on-surface-variant/10 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-label-caps font-label-caps">Settings</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 lg:ml-64 flex flex-col h-full bg-background relative overflow-y-auto">
+<!-- TopAppBar -->
+<header class="docked full-width top-0 sticky z-40 backdrop-blur-md border-b border-border-subtle dark:border-outline-variant bg-surface-pure/80 dark:bg-inverse-surface/80 flex justify-between items-center w-full px-6 py-3 max-w-container-max mx-auto">
+<div class="flex items-center gap-4">
+<!-- Mobile Menu Button (Placeholder for interaction) -->
+<button class="lg:hidden p-2 -ml-2 text-secondary rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 class="text-headline-md font-headline-md font-bold text-on-surface dark:text-inverse-on-surface hidden md:block">MedFlow Dashboard</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary">search</span>
+<input class="pl-10 pr-4 py-1.5 rounded-full border border-border-subtle bg-surface-pure text-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all w-64" placeholder="Search Case ID..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-secondary hover:text-primary transition-colors rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-secondary hover:text-primary transition-colors rounded-full hover:bg-surface-container-low hidden sm:block">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="ml-2 pl-4 border-l border-border-subtle">
+<img alt="Pharmacist Profile" class="w-8 h-8 rounded-full object-cover border border-border-subtle" data-alt="Professional headshot of a pharmacist in a white coat, brightly lit with a clean modern background, suitable for a healthcare application profile picture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmaMUFuQbv_GH2gl9hiGqD9hlX54qLIvaky7f3-VTRH6GcteEMFRiYJSVWbsTLXXhD6ZDnJGnMODM37zOIe1zDNOHUIRlEXOcK_ZCaA9RcqAl3YrKlHrQXerKgkFmPiFGztsvCgqVdfdGDiORYiKdrOMQSy8TwwLZuzKir9lJ4dARxxYqGMbRMpfw_aIjMhhla380OB3484PMAYmYao6lZtfiMUidYeQG2kEKDQc0-suuQbtuxp7iw1A"/>
+</div>
+</div>
+</div>
+</header>
+<div class="p-margin-mobile md:p-margin-desktop max-w-container-max mx-auto w-full pb-24 lg:pb-margin-desktop flex-grow flex flex-col gap-gutter">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+<div>
+<h2 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface">Pharmacy Dashboard</h2>
+<p class="text-body-lg font-body-lg text-text-muted mt-1">Live status of discharge medications.</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-body-md font-medium hover:bg-primary transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        New Case
+                    </button>
+</div>
+</div>
+<!-- Key Metrics (Bento Grid Style) -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<!-- Incoming Requests -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle p-5 flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-xl"></div>
+<div>
+<p class="text-label-caps font-label-caps text-secondary mb-1">INCOMING REQUESTS</p>
+<h3 class="text-display-id font-display-id text-on-surface">12</h3>
+</div>
+<div class="mt-4 flex items-center gap-2 text-body-md text-secondary">
+<span class="material-symbols-outlined text-[16px] text-primary">fiber_new</span>
+<span>Newly submitted</span>
+</div>
+</div>
+<!-- Awaiting Dispensing -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle p-5 flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-status-ready/10 rounded-full blur-xl"></div>
+<div>
+<p class="text-label-caps font-label-caps text-secondary mb-1">AWAITING DISPENSING</p>
+<h3 class="text-display-id font-display-id text-on-surface">8</h3>
+</div>
+<div class="mt-4 flex items-center gap-2 text-body-md text-secondary">
+<span class="material-symbols-outlined text-[16px] text-status-ready">shopping_basket</span>
+<span>Basket received</span>
+</div>
+</div>
+<!-- Approaching SLA -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle p-5 flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-status-warning/10 rounded-full blur-xl"></div>
+<div>
+<p class="text-label-caps font-label-caps text-secondary mb-1">APPROACHING SLA</p>
+<h3 class="text-display-id font-display-id text-on-surface">3</h3>
+</div>
+<div class="mt-4 flex items-center gap-2 text-body-md text-secondary">
+<span class="material-symbols-outlined text-[16px] text-status-warning">timer</span>
+<span>&lt; 15 mins remaining</span>
+</div>
+</div>
+<!-- Exceeded SLA -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle p-5 flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-status-critical/5 rounded-full blur-xl"></div>
+<div>
+<p class="text-label-caps font-label-caps text-secondary mb-1">EXCEEDED SLA</p>
+<h3 class="text-display-id font-display-id text-on-surface">1</h3>
+</div>
+<div class="mt-4 flex items-center gap-2 text-body-md text-secondary">
+<span class="material-symbols-outlined text-[16px] text-status-critical">warning</span>
+<span>Requires attention</span>
+</div>
+</div>
+</div>
+<!-- Section Title -->
+<div class="flex items-center justify-between mt-6 mb-2 border-b border-border-subtle pb-4">
+<h3 class="text-headline-md font-headline-md text-on-surface">Active Operational List</h3>
+<div class="flex gap-2 text-body-md">
+<button class="px-3 py-1 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container-high transition-colors text-sm">All</button>
+<button class="px-3 py-1 rounded-full bg-surface-pure border border-border-subtle text-secondary hover:bg-surface-container-low transition-colors text-sm">Critical</button>
+</div>
+</div>
+<!-- Operational List (Cards) -->
+<div class="flex flex-col gap-4">
+<!-- Card 1: Critical (Exceeded SLA) -->
+<div class="bg-surface-pure border border-border-subtle rounded-xl p-6 flex flex-col lg:flex-row gap-6 items-start lg:items-center status-strip-critical shadow-sm hover:shadow-md transition-shadow">
+<!-- ID & Patient Info -->
+<div class="flex-shrink-0 w-48">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-numeric-data font-numeric-data text-on-surface">MR-4092</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-status-critical/10 text-status-critical">SLA BREACH</span>
+</div>
+<p class="text-body-md font-body-md text-secondary">AN 69•••4438</p>
+<p class="text-body-md font-body-md text-secondary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">bed</span> Room 402B
+                        </p>
+</div>
+<!-- Progress / State Machine -->
+<div class="flex-grow w-full lg:w-auto">
+<div class="flex justify-between max-w-2xl mx-auto w-full relative">
+<!-- Timeline Steps -->
+<div class="timeline-step flex flex-col items-center flex-1 completed">
+<div class="timeline-dot completed"><span class="material-symbols-outlined text-[10px] text-white">check</span></div>
+<span class="text-[11px] font-semibold mt-2 text-primary">ส่งแล้ว</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1 completed">
+<div class="timeline-dot completed"><span class="material-symbols-outlined text-[10px] text-white">check</span></div>
+<span class="text-[11px] font-semibold mt-2 text-primary">กำลังเตรียม</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1 current">
+<div class="timeline-dot current"></div>
+<span class="text-[11px] font-semibold mt-2 text-on-surface">พร้อมจ่าย</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">รับตะกร้า</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">จ่ายยา</span>
+</div>
+</div>
+</div>
+<!-- Action & Time -->
+<div class="flex-shrink-0 flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-48 gap-4 lg:gap-2">
+<div class="text-right">
+<p class="text-numeric-data font-numeric-data text-status-critical">48m elapsed</p>
+<p class="text-label-caps font-label-caps text-secondary mt-1">Target: 45m</p>
+</div>
+<button class="px-5 py-2 rounded-lg bg-surface-container-highest text-on-surface text-body-md font-medium hover:bg-secondary-container transition-colors w-full lg:w-auto border border-border-subtle">
+                            Scan Basket
+                        </button>
+</div>
+</div>
+<!-- Card 2: Awaiting Dispensing (High Priority) -->
+<div class="bg-surface-pure border border-border-subtle rounded-xl p-6 flex flex-col lg:flex-row gap-6 items-start lg:items-center status-strip-ready shadow-sm hover:shadow-md transition-shadow">
+<!-- ID & Patient Info -->
+<div class="flex-shrink-0 w-48">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-numeric-data font-numeric-data text-on-surface">MR-4095</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-status-ready/10 text-status-ready">BASKET READY</span>
+</div>
+<p class="text-body-md font-body-md text-secondary">AN 69•••8821</p>
+<p class="text-body-md font-body-md text-secondary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">bed</span> Room 105A
+                        </p>
+</div>
+<!-- Progress / State Machine -->
+<div class="flex-grow w-full lg:w-auto">
+<div class="flex justify-between max-w-2xl mx-auto w-full relative">
+<div class="timeline-step flex flex-col items-center flex-1 completed">
+<div class="timeline-dot completed"><span class="material-symbols-outlined text-[10px] text-white">check</span></div>
+<span class="text-[11px] font-semibold mt-2 text-primary">ส่งแล้ว</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1 completed">
+<div class="timeline-dot completed"><span class="material-symbols-outlined text-[10px] text-white">check</span></div>
+<span class="text-[11px] font-semibold mt-2 text-primary">กำลังเตรียม</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1 completed">
+<div class="timeline-dot completed"><span class="material-symbols-outlined text-[10px] text-white">check</span></div>
+<span class="text-[11px] font-semibold mt-2 text-primary">พร้อมจ่าย</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1 current">
+<div class="timeline-dot current"></div>
+<span class="text-[11px] font-semibold mt-2 text-on-surface">รับตะกร้า</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">จ่ายยา</span>
+</div>
+</div>
+</div>
+<!-- Action & Time -->
+<div class="flex-shrink-0 flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-48 gap-4 lg:gap-2">
+<div class="text-right">
+<p class="text-numeric-data font-numeric-data text-on-surface">32m elapsed</p>
+<p class="text-label-caps font-label-caps text-secondary mt-1">Target: 45m</p>
+</div>
+<button class="px-5 py-2 rounded-lg bg-primary-container text-on-primary-container text-body-md font-medium hover:bg-primary transition-colors w-full lg:w-auto shadow-sm">
+                            Dispense
+                        </button>
+</div>
+</div>
+<!-- Card 3: Warning (Approaching SLA) -->
+<div class="bg-surface-pure border border-border-subtle rounded-xl p-6 flex flex-col lg:flex-row gap-6 items-start lg:items-center status-strip-warning shadow-sm hover:shadow-md transition-shadow">
+<!-- ID & Patient Info -->
+<div class="flex-shrink-0 w-48">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-numeric-data font-numeric-data text-on-surface">MR-4102</span>
+</div>
+<p class="text-body-md font-body-md text-secondary">AN 69•••1192</p>
+<p class="text-body-md font-body-md text-secondary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">bed</span> Room 301D
+                        </p>
+</div>
+<!-- Progress / State Machine -->
+<div class="flex-grow w-full lg:w-auto">
+<div class="flex justify-between max-w-2xl mx-auto w-full relative">
+<div class="timeline-step flex flex-col items-center flex-1 completed">
+<div class="timeline-dot completed"><span class="material-symbols-outlined text-[10px] text-white">check</span></div>
+<span class="text-[11px] font-semibold mt-2 text-primary">ส่งแล้ว</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1 current">
+<div class="timeline-dot current"></div>
+<span class="text-[11px] font-semibold mt-2 text-on-surface">กำลังเตรียม</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">พร้อมจ่าย</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">รับตะกร้า</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">จ่ายยา</span>
+</div>
+</div>
+</div>
+<!-- Action & Time -->
+<div class="flex-shrink-0 flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-48 gap-4 lg:gap-2">
+<div class="text-right">
+<p class="text-numeric-data font-numeric-data text-status-warning">38m elapsed</p>
+<p class="text-label-caps font-label-caps text-secondary mt-1">Target: 45m</p>
+</div>
+<button class="px-5 py-2 rounded-lg bg-surface-container-highest text-on-surface text-body-md font-medium hover:bg-secondary-container transition-colors w-full lg:w-auto border border-border-subtle">
+                            Mark Ready
+                        </button>
+</div>
+</div>
+<!-- Card 4: New -->
+<div class="bg-surface-pure border border-border-subtle rounded-xl p-6 flex flex-col lg:flex-row gap-6 items-start lg:items-center status-strip-new shadow-sm hover:shadow-md transition-shadow opacity-80 hover:opacity-100">
+<!-- ID & Patient Info -->
+<div class="flex-shrink-0 w-48">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-numeric-data font-numeric-data text-on-surface">MR-4108</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-primary-container/10 text-primary">NEW</span>
+</div>
+<p class="text-body-md font-body-md text-secondary">AN 69•••5561</p>
+<p class="text-body-md font-body-md text-secondary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">bed</span> Room 210
+                        </p>
+</div>
+<!-- Progress / State Machine -->
+<div class="flex-grow w-full lg:w-auto">
+<div class="flex justify-between max-w-2xl mx-auto w-full relative">
+<div class="timeline-step flex flex-col items-center flex-1 current">
+<div class="timeline-dot current"></div>
+<span class="text-[11px] font-semibold mt-2 text-on-surface">ส่งแล้ว</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">กำลังเตรียม</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">พร้อมจ่าย</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">รับตะกร้า</span>
+</div>
+<div class="timeline-step flex flex-col items-center flex-1">
+<div class="timeline-dot pending"></div>
+<span class="text-[11px] font-medium mt-2 text-secondary">จ่ายยา</span>
+</div>
+</div>
+</div>
+<!-- Action & Time -->
+<div class="flex-shrink-0 flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-48 gap-4 lg:gap-2">
+<div class="text-right">
+<p class="text-numeric-data font-numeric-data text-on-surface">05m elapsed</p>
+<p class="text-label-caps font-label-caps text-secondary mt-1">Target: 45m</p>
+</div>
+<button class="px-5 py-2 rounded-lg bg-surface-container-highest text-on-surface text-body-md font-medium hover:bg-secondary-container transition-colors w-full lg:w-auto border border-border-subtle">
+                            Start Prep
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav aria-label="Bottom Navigation" class="fixed bottom-0 w-full z-50 lg:hidden border-t border-border-subtle dark:border-outline-variant bg-surface-pure/90 backdrop-blur-lg shadow-lg">
+<div class="flex justify-around items-center h-16 px-4 pb-safe">
+<a class="flex flex-col items-center justify-center text-primary dark:text-inverse-primary font-bold active:bg-surface-container-high transition-colors active:scale-95 duration-150 p-2 rounded-lg w-full" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-label-caps font-label-caps">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim active:bg-surface-container-high transition-colors p-2 rounded-lg w-full" href="#">
+<span class="material-symbols-outlined mb-1">clinical_notes</span>
+<span class="text-label-caps font-label-caps">MedReady</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim active:bg-surface-container-high transition-colors p-2 rounded-lg w-full" href="#">
+<span class="material-symbols-outlined mb-1">analytics</span>
+<span class="text-label-caps font-label-caps">Analytics</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim active:bg-surface-container-high transition-colors p-2 rounded-lg w-full" href="#">
+<span class="material-symbols-outlined mb-1">settings</span>
+<span class="text-label-caps font-label-caps">Settings</span>
+</a>
+</div>
+</nav>
+</body></html>

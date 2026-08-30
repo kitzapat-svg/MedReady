@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="th" class="light">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>MedReady — ติดตามความพร้อมยากลับบ้าน</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  
+  <!-- Google Fonts: Hanken Grotesk, Be Vietnam Pro, Material Symbols Outlined -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <!-- Tailwind Configuration for Clinical Precision -->
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#0059b5",
+            "primary-container": "#0071e3",
+            "on-primary": "#ffffff",
+            "surface": "#fcf8fb",
+            "surface-pure": "#ffffff",
+            "surface-container": "#f0edef",
+            "surface-container-low": "#f6f3f5",
+            "on-surface": "#1b1b1d",
+            "on-surface-variant": "#414753",
+            "text-muted": "#86868b",
+            "border-subtle": "#d2d2d7",
+            "status-ready": "#28cd41",
+            "status-warning": "#ff9f0a",
+            "status-critical": "#ff3b30",
+            "error": "#ba1a1a",
+            "error-container": "#ffdad6"
+          },
+          fontFamily: {
+            display: ["Hanken Grotesk", "sans-serif"],
+            body: ["Be Vietnam Pro", "sans-serif"],
+            numeric: ["Hanken Grotesk", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom Theme Styles -->
+  <?!= include('styles') ?>
+</head>
+<body class="bg-[#fcf8fb] text-[#1b1b1d] antialiased min-h-screen flex flex-col md:flex-row">
+
+  <!-- ==================== DESKTOP SIDEBAR NAV ==================== -->
+  <aside id="main-sidebar" class="hidden md:flex flex-col w-64 bg-white border-r border-[#e4e2e4] p-5 justify-between shrink-0 min-h-screen sticky top-0">
+    <!-- Brand / Header -->
+    <div class="space-y-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-[#0071e3] text-white flex items-center justify-center shadow-md shadow-[#0071e3]/20">
+          <span class="material-symbols-outlined text-2xl">medication</span>
+        </div>
+        <div>
+          <span class="font-display font-bold text-lg text-[#1b1b1d] tracking-tight">MedReady</span>
+          <div class="text-[10px] text-[#86868b] leading-none">เชื่อมต่อ Ward & ห้องยา</div>
+        </div>
+      </div>
+
+      <!-- Navigation Links (Role Filtered) -->
+      <nav class="space-y-1 text-xs font-medium">
+        <!-- Ward Links -->
+        <a href="javascript:void(0)" onclick="App.navigate('ward-dashboard')" data-screen="ward-dashboard" 
+          class="nav-link nav-ward-only flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors">
+          <span class="material-symbols-outlined text-xl">dashboard</span>
+          <span>Ward Dashboard</span>
+        </a>
+        <a href="javascript:void(0)" onclick="App.navigate('send-patient')" data-screen="send-patient" 
+          class="nav-link nav-ward-only flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors">
+          <span class="material-symbols-outlined text-xl">send</span>
+          <span>ส่งผู้ป่วยไปห้องยา</span>
+        </a>
+
+        <!-- Pharmacy Links -->
+        <a href="javascript:void(0)" onclick="App.navigate('pharmacy-dashboard')" data-screen="pharmacy-dashboard" 
+          class="nav-link nav-pharmacy-only flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors">
+          <span class="material-symbols-outlined text-xl">table_chart_view</span>
+          <span>Pharmacy Dashboard</span>
+        </a>
+        <a href="javascript:void(0)" onclick="App.navigate('analytics')" data-screen="analytics" 
+          class="nav-link nav-pharmacy-only flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors">
+          <span class="material-symbols-outlined text-xl">insights</span>
+          <span>สถิติ & เวลารอ</span>
+        </a>
+
+        <!-- Shared Links -->
+        <a href="javascript:void(0)" onclick="App.navigate('board')" data-screen="board" 
+          class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors">
+          <span class="material-symbols-outlined text-xl">view_kanban</span>
+          <span>MedReady Board</span>
+        </a>
+
+        <!-- Admin Links -->
+        <a href="javascript:void(0)" onclick="App.navigate('admin')" data-screen="admin" 
+          class="nav-link nav-admin-only hidden flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[#414753] hover:bg-[#f6f3f5] transition-colors">
+          <span class="material-symbols-outlined text-xl">admin_panel_settings</span>
+          <span>ผู้ใช้งาน & ตั้งค่า</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- User Profile & Footer Info -->
+    <div class="pt-4 border-t border-[#e4e2e4] space-y-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-[#f0edef] text-[#0059b5] flex items-center justify-center font-bold text-xs font-display">
+          <span class="material-symbols-outlined text-sm">account_circle</span>
+        </div>
+        <div class="overflow-hidden">
+          <div class="text-xs font-semibold text-[#1b1b1d] truncate" id="user-display-name">Loading...</div>
+          <div class="text-[10px] text-[#86868b] truncate" id="user-role-badge">-</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN CONTENT AREA ==================== -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <!-- Top Bar (Desktop & Mobile) -->
+    <header id="top-bar" class="hidden h-16 bg-white/80 backdrop-blur-md border-b border-[#e4e2e4] px-6 flex items-center justify-between sticky top-0 z-30">
+      <div class="flex items-center gap-2 md:hidden">
+        <div class="w-8 h-8 rounded-lg bg-[#0071e3] text-white flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg">medication</span>
+        </div>
+        <span class="font-display font-bold text-base text-[#1b1b1d]">MedReady</span>
+      </div>
+
+      <div class="hidden md:block text-xs text-[#86868b]">
+        โรงพยาบาล • ระบบบริหารจัดการความพร้อมยากลับบ้าน
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Notification Bell -->
+        <button onclick="App.openNotifications()" class="relative p-2 text-[#5d5e60] hover:bg-[#f0edef] rounded-lg transition-colors" title="การแจ้งเตือน">
+          <span class="material-symbols-outlined text-xl">notifications</span>
+          <span id="notif-unread-badge" class="hidden absolute top-1.5 right-1.5 w-4 h-4 bg-[#ff3b30] text-white text-[10px] font-bold rounded-full flex items-center justify-center font-numeric">
+            0
+          </span>
+        </button>
+
+        <!-- Refresh Button -->
+        <button onclick="App.refreshData(true)" class="p-2 text-[#5d5e60] hover:bg-[#f0edef] rounded-lg transition-colors" title="รีเฟรชข้อมูล">
+          <span class="material-symbols-outlined text-xl">sync</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- App Views Content (Container) -->
+    <div class="flex-1 p-4 md:p-8 max-w-[1200px] w-full mx-auto pb-24 md:pb-8">
+      <?!= include('views') ?>
+    </div>
+  </main>
+
+  <!-- ==================== MOBILE BOTTOM NAV ==================== -->
+  <nav id="bottom-nav" class="hidden md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-lg border-t border-[#e4e2e4] h-16 flex items-center justify-around z-40 px-2">
+    <button onclick="App.navigate('ward-dashboard')" class="nav-ward-only flex flex-col items-center gap-1 text-[#5d5e60] hover:text-[#0071e3]">
+      <span class="material-symbols-outlined text-xl">dashboard</span>
+      <span class="text-[10px] font-medium">Ward</span>
+    </button>
+    <button onclick="App.navigate('pharmacy-dashboard')" class="nav-pharmacy-only flex flex-col items-center gap-1 text-[#5d5e60] hover:text-[#0071e3]">
+      <span class="material-symbols-outlined text-xl">table_chart_view</span>
+      <span class="text-[10px] font-medium">Pharmacy</span>
+    </button>
+    <button onclick="App.navigate('send-patient')" class="nav-ward-only flex flex-col items-center gap-1 text-[#0071e3]">
+      <div class="w-8 h-8 rounded-full bg-[#0071e3] text-white flex items-center justify-center shadow-md">
+        <span class="material-symbols-outlined text-lg">add</span>
+      </div>
+      <span class="text-[9px] font-semibold">ส่งผู้ป่วย</span>
+    </button>
+    <button onclick="App.navigate('board')" class="flex flex-col items-center gap-1 text-[#5d5e60] hover:text-[#0071e3]">
+      <span class="material-symbols-outlined text-xl">view_kanban</span>
+      <span class="text-[10px] font-medium">Board</span>
+    </button>
+    <button onclick="App.openNotifications()" class="flex flex-col items-center gap-1 text-[#5d5e60] hover:text-[#0071e3]">
+      <span class="material-symbols-outlined text-xl">notifications</span>
+      <span class="text-[10px] font-medium">แจ้งเตือน</span>
+    </button>
+  </nav>
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- Client-side Logic Script -->
+  <?!= include('scripts') ?>
+</body>
+</html>
+

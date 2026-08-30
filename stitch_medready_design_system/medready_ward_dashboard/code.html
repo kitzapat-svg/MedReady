@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MedReady Ward Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "inverse-surface": "#303032",
+                "inverse-on-surface": "#f3f0f2",
+                "tertiary": "#9b3f00",
+                "secondary-fixed": "#e2e2e4",
+                "on-background": "#1b1b1d",
+                "surface-pure": "#FFFFFF",
+                "secondary": "#5d5e60",
+                "surface-container-highest": "#e4e2e4",
+                "status-warning": "#FF9F0A",
+                "surface-tint": "#005cbb",
+                "on-tertiary-container": "#fffaf9",
+                "on-primary-container": "#fcfbff",
+                "surface-container": "#f0edef",
+                "status-critical": "#FF3B30",
+                "outline-variant": "#c1c6d6",
+                "tertiary-container": "#c25100",
+                "primary-fixed": "#d7e2ff",
+                "border-subtle": "#D2D2D7",
+                "surface-variant": "#e4e2e4",
+                "on-tertiary-fixed": "#341000",
+                "on-error-container": "#93000a",
+                "surface-container-high": "#eae7ea",
+                "secondary-fixed-dim": "#c6c6c8",
+                "surface-dim": "#dcd9dc",
+                "on-primary-fixed": "#001b3f",
+                "text-muted": "#86868B",
+                "on-secondary-fixed": "#1a1c1d",
+                "on-tertiary": "#ffffff",
+                "background": "#fcf8fb",
+                "on-tertiary-fixed-variant": "#7a3000",
+                "primary": "#0059b5",
+                "status-ready": "#28CD41",
+                "tertiary-fixed-dim": "#ffb693",
+                "on-primary": "#ffffff",
+                "inverse-primary": "#abc7ff",
+                "on-surface-variant": "#414753",
+                "surface-container-low": "#f6f3f5",
+                "on-secondary-container": "#616365",
+                "error-container": "#ffdad6",
+                "tertiary-fixed": "#ffdbcb",
+                "secondary-container": "#dfdfe1",
+                "surface-bright": "#fcf8fb",
+                "on-surface": "#1b1b1d",
+                "primary-container": "#0071e3",
+                "error": "#ba1a1a",
+                "on-secondary": "#ffffff",
+                "on-secondary-fixed-variant": "#454749",
+                "surface": "#fcf8fb",
+                "surface-container-lowest": "#ffffff",
+                "on-error": "#ffffff",
+                "outline": "#717785",
+                "on-primary-fixed-variant": "#00458f",
+                "primary-fixed-dim": "#abc7ff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "margin-mobile": "20px",
+                "unit": "8px",
+                "gutter": "24px",
+                "container-max": "1200px",
+                "margin-desktop": "40px"
+        },
+        "fontFamily": {
+                "body-md": [
+                        "Be Vietnam Pro"
+                ],
+                "headline-lg-mobile": [
+                        "Hanken Grotesk"
+                ],
+                "headline-lg": [
+                        "Hanken Grotesk"
+                ],
+                "numeric-data": [
+                        "Hanken Grotesk"
+                ],
+                "display-id": [
+                        "Hanken Grotesk"
+                ],
+                "body-lg": [
+                        "Be Vietnam Pro"
+                ],
+                "label-caps": [
+                        "Hanken Grotesk"
+                ],
+                "headline-md": [
+                        "Hanken Grotesk"
+                ]
+        },
+        "fontSize": {
+                "body-md": [
+                        "15px",
+                        {
+                                "lineHeight": "22px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "26px",
+                        {
+                                "lineHeight": "32px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "numeric-data": [
+                        "19px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "500"
+                        }
+                ],
+                "display-id": [
+                        "44px",
+                        {
+                                "lineHeight": "48px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-lg": [
+                        "17px",
+                        {
+                                "lineHeight": "26px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-md": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        body {
+            background-color: #F5F5F7;
+        }
+        
+        .shadow-level-1 {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .shadow-level-2 {
+            box-shadow: 0 4px 20px rgba(0, 113, 227, 0.12);
+        }
+        
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #E8E8ED;
+            z-index: 0;
+            transform: translateY(-50%);
+        }
+        
+        .timeline-line-active {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            height: 2px;
+            background-color: #0071E3;
+            z-index: 0;
+            transform: translateY(-50%);
+            transition: width 0.5s ease;
+        }
+
+        .status-strip-ready {
+            border-left: 4px solid #28CD41;
+        }
+        
+        .status-strip-progress {
+            border-left: 4px solid #FF9F0A;
+        }
+        
+        .status-strip-submitted {
+            border-left: 4px solid #D2D2D7;
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-on-surface antialiased">
+<!-- SideNavBar (Desktop Only) -->
+<nav class="hidden md:flex bg-surface-pure flex-col h-full py-8 px-4 h-screen w-64 border-r border-border-subtle shrink-0">
+<div class="mb-8 px-4">
+<h1 class="font-headline-md text-headline-md font-semibold text-primary">MedReady Ward</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Ward Dashboard</p>
+</div>
+<ul class="flex-1 space-y-2">
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-surface-container-low text-primary font-semibold border-r-2 border-primary transition-all duration-150 opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">person_add</span>
+<span class="font-body-md text-body-md">Send Patient</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">clinical_notes</span>
+<span class="font-body-md text-body-md">Board</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-body-md text-body-md">Notifications</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto px-4 pt-4 border-t border-border-subtle">
+<div class="flex items-center space-x-3">
+<img alt="User profile" class="w-10 h-10 rounded-full object-cover border border-border-subtle" data-alt="A small circular avatar of a professional nurse in a clean white uniform against a soft blue background. Minimalist portrait, high resolution, soft studio lighting. Corporate reliability aesthetic, calm and composed expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWFbBDfuT0-ZhTRCONUjyXWYpQVS6KgZJzuOtoHWA9-e8gaMVCiPXV_erlBwyyhu9qt5BDcYuYp0W0FS1pkUSOYdpvuatHebIljm65qcvGQM6WgABoT0c0SVT42LhkWWGQTTTv_AWViX3Ns9UL1pv0eohhZpp0TrNGTe8tpmo3AmWfCi41ucs8ziVDk0MIRf3C_tE2BEGIeGlv_KiBMKFQnL3ch-W01nyCk3Q4g4vmeP-zGVdi_v34UA"/>
+<div>
+<p class="font-body-md text-body-md font-medium">Nurse Jane</p>
+<p class="font-label-caps text-label-caps text-text-muted uppercase">On Duty</p>
+</div>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-50 flex justify-between items-center w-full px-margin-desktop h-20 bg-surface-pure/80 backdrop-blur-xl border-b border-border-subtle">
+<div class="flex items-center">
+<span class="font-headline-md text-headline-md font-bold text-primary md:hidden">MedReady</span>
+<!-- Search Bar -->
+<div class="hidden md:flex relative ml-8">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[20px]">search</span>
+<input class="pl-10 pr-4 py-2 w-64 bg-surface-container-low border border-border-subtle rounded-full font-body-md text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Search Patient ID..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-6">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">help</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+</button>
+<img alt="Nurse avatar" class="w-10 h-10 rounded-full object-cover border border-border-subtle" data-alt="A small circular avatar of a professional nurse in a clean white uniform against a soft blue background. Minimalist portrait, high resolution, soft studio lighting. Corporate reliability aesthetic, calm and composed expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVRx2SMSNYq0lPaGnF3SWjzLTCjhKwIfqB8eKu-4tGaGzIEZH6zACVVrrbiAEyISdjcgtAiUtVXKeVcggsPNpmViUEgK290eiYhwlPlV2swfKhkJ1LLMxI07-yrgJVER3z6IBeuLOTQNRYB4HIkZXs-ttI1VfvTNYiVBCCSilEbvlvXV6OB5gIqhnR7saRiwjKXyNsrbuldABQc-1ei42g19DaY6yHPa5jwTbBvt255wxcip_Bj3z8iQ"/>
+</div>
+</header>
+<!-- Scrollable Canvas -->
+<main class="flex-1 overflow-y-auto px-margin-desktop py-12">
+<div class="max-w-[1200px] mx-auto">
+<!-- Header Section -->
+<div class="mb-12">
+<h2 class="font-display-id text-display-id text-on-surface mb-2">Ward Dashboard</h2>
+<p class="font-body-lg text-body-lg text-text-muted">Ward 7 - Private Wing</p>
+</div>
+<!-- Metrics Grid (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+<!-- Primary Metric: Ready -->
+<div class="md:col-span-1 bg-surface-pure rounded-xl border border-border-subtle p-8 flex flex-col justify-between hover:shadow-level-2 transition-shadow duration-300 relative overflow-hidden group cursor-pointer">
+<div class="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-[80px] text-status-ready" style="font-variation-settings: 'FILL' 1;">local_pharmacy</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-status-ready uppercase tracking-widest mb-2 flex items-center">
+<span class="w-2 h-2 rounded-full bg-status-ready mr-2 animate-pulse"></span>
+                                READY TO DISCHARGE
+                            </p>
+<p class="font-body-md text-body-md text-text-muted mb-6">ยาพร้อมจ่ายแล้ว</p>
+</div>
+<div class="flex items-end justify-between">
+<span class="font-display-id text-[64px] leading-none text-on-surface">5</span>
+<span class="material-symbols-outlined text-status-ready text-[32px]">arrow_forward</span>
+</div>
+</div>
+<div class="md:col-span-2 grid grid-cols-2 gap-6">
+<!-- Secondary Metric: In Progress -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle p-6 flex flex-col justify-between hover:shadow-level-1 transition-shadow duration-300 cursor-pointer">
+<div>
+<p class="font-label-caps text-label-caps text-status-warning uppercase tracking-widest mb-1">IN PROGRESS</p>
+<p class="font-body-md text-body-md text-text-muted mb-4">กำลังเตรียมยา</p>
+</div>
+<span class="font-display-id text-[48px] leading-none text-on-surface">12</span>
+</div>
+<!-- Secondary Metric: Submitted -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle p-6 flex flex-col justify-between hover:shadow-level-1 transition-shadow duration-300 cursor-pointer">
+<div>
+<p class="font-label-caps text-label-caps text-text-muted uppercase tracking-widest mb-1">SUBMITTED</p>
+<p class="font-body-md text-body-md text-text-muted mb-4">รอห้องยา</p>
+</div>
+<span class="font-display-id text-[48px] leading-none text-on-surface">3</span>
+</div>
+</div>
+</div>
+<!-- Main Case List -->
+<div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface mb-6 border-b border-border-subtle pb-4">Operational Status</h3>
+<!-- READY Group -->
+<div class="mb-10">
+<div class="flex items-center space-x-2 mb-4 pl-4">
+<span class="w-3 h-3 rounded-full bg-status-ready"></span>
+<h4 class="font-headline-md text-headline-md text-on-surface">Ready for Pickup</h4>
+</div>
+<div class="space-y-4">
+<!-- Row 1 -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle status-strip-ready p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-level-1 transition-shadow">
+<div class="flex-shrink-0 w-48">
+<p class="font-numeric-data text-numeric-data text-on-surface font-semibold">MR-0248</p>
+<p class="font-body-md text-body-md text-text-muted mt-1">AN: 69•••4438</p>
+<p class="font-body-md text-body-md text-text-muted">Room: 305 / 1</p>
+</div>
+<div class="flex-grow max-w-2xl relative py-6">
+<div class="timeline-line"></div>
+<div class="timeline-line-active" style="width: 100%;"></div>
+<div class="relative z-10 flex justify-between">
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-primary border-2 border-surface-pure shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted">ส่งแล้ว</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-primary border-2 border-surface-pure shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted">กำลังเตรียม</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-primary border-2 border-surface-pure shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted">พร้อมจ่าย</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-primary border-2 border-surface-pure shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted">รับตะกร้า</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-status-ready border-2 border-surface-pure shadow-sm mb-2 shadow-[0_0_8px_rgba(40,205,65,0.5)]"></div>
+<span class="font-label-caps text-[10px] text-status-ready font-bold">จ่ายยา</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex items-center justify-end">
+<button class="bg-primary-container text-on-primary-container px-6 py-3 rounded-lg font-body-md text-body-md font-medium hover:bg-surface-tint transition-colors shadow-sm flex items-center space-x-2">
+<span>Send Patient</span>
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- IN PROGRESS Group -->
+<div class="mb-10">
+<div class="flex items-center space-x-2 mb-4 pl-4">
+<span class="w-3 h-3 rounded-full bg-status-warning"></span>
+<h4 class="font-headline-md text-headline-md text-on-surface text-opacity-80">In Progress</h4>
+</div>
+<div class="space-y-4">
+<!-- Row 2 -->
+<div class="bg-surface-pure rounded-xl border border-border-subtle status-strip-progress p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-level-1 transition-shadow opacity-90">
+<div class="flex-shrink-0 w-48">
+<p class="font-numeric-data text-numeric-data text-on-surface font-semibold">MR-0251</p>
+<p class="font-body-md text-body-md text-text-muted mt-1">AN: 69•••4501</p>
+<p class="font-body-md text-body-md text-text-muted">Room: 312 / 2</p>
+</div>
+<div class="flex-grow max-w-2xl relative py-6">
+<div class="timeline-line"></div>
+<div class="timeline-line-active" style="width: 50%;"></div>
+<div class="relative z-10 flex justify-between">
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-primary border-2 border-surface-pure shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted">ส่งแล้ว</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-primary border-2 border-surface-pure shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted">กำลังเตรียม</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-surface-pure border-2 border-primary shadow-sm mb-2"></div>
+<span class="font-label-caps text-[10px] text-primary font-bold">พร้อมจ่าย</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-surface-pure border-2 border-border-subtle mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted opacity-50">รับตะกร้า</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-surface-pure border-2 border-border-subtle mb-2"></div>
+<span class="font-label-caps text-[10px] text-text-muted opacity-50">จ่ายยา</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex items-center justify-end w-[180px]">
+<span class="bg-surface-container-low text-on-surface-variant px-4 py-2 rounded-lg font-body-md text-body-md border border-border-subtle">
+                                        Processing
+                                    </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
