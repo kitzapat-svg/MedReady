@@ -12,6 +12,9 @@ pnpm-lock.yaml
 .env
 .env.*
 !.env.example
+.ipd_sync/
+*.json.bak
+service_account.json
 
 # Logs & Temp
 *.log

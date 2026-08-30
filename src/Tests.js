@@ -65,6 +65,17 @@ function runAllTests() {
     assert('Preparation Lead Time formula', prepLeadTime === 30, 'Lead time: ' + prepLeadTime + ' min');
     assert('True Patient Waiting Time formula', truePatientWait === 11, 'Patient wait: ' + truePatientWait + ' min');
 
+    // 7. Test IPD Orders Sync Structure
+    assert('IPD_ORDERS Sheet Config', CONFIG.SHEETS.IPD_ORDERS === 'IPD_Orders', 'Sheet name is IPD_Orders');
+    const syncTestOrders = [
+      ['ใบสั่งยาใหม่', '6912344438', 'ผู้ป่วยทดสอบ 1', 'ตึกพิเศษ', 'EX05', '2026-08-30', '10:15', 'HME', new Date().toISOString()]
+    ];
+    const syncRes = apiSyncIpdOrders(syncTestOrders);
+    assert('API Sync IPD Orders', syncRes && syncRes.success === true, 'apiSyncIpdOrders succeeds');
+    
+    const getSyncedRes = apiGetIpdSyncedOrders('ตึกพิเศษ');
+    assert('API Get Synced IPD Orders', getSyncedRes && getSyncedRes.success === true && getSyncedRes.data.orders.length > 0, 'Found ' + (getSyncedRes.data ? getSyncedRes.data.orders.length : 0) + ' orders');
+
   } catch (err) {
     failed++;
     results.push({ name: 'Exception in tests', status: 'FAIL', message: err.message });

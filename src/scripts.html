@@ -1,0 +1,992 @@
+<script>
+/**
+ * MedReady - Client-side Application Controller
+ * Handles Navigation, Real-time Sync, State Machine Interactions, and IPD Intranet Integration.
+ */
+
+const App = {
+  // Global State
+  currentUser: null,
+  currentScreen: 'auth-loading',
+  cases: [],
+  notifications: [],
+  syncedIpdOrders: [],
+  selectedCaseId: null,
+  pharmacyFilter: 'ALL',
+  pollTimer: null,
+  isRefreshing: false,
+
+  /**
+   * Application Entry Point
+   */
+  init: function() {
+    this.checkAuth();
+  },
+
+  /**
+   * Check Auth & Initialize Role Views
+   */
+  checkAuth: function() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.authenticated || !res.active) {
+          App.showAuthDenied(res);
+          return;
+        }
+
+        App.currentUser = res;
+        App.setupUserInterface();
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message, 'error');
+        App.showAuthDenied({ message: err.message });
+      })
+      .apiGetCurrentUser();
+  },
+
+  /**
+   * Render User Shell based on Role
+   */
+  setupUserInterface: function() {
+    const user = this.currentUser;
+    
+    // Set user profile info
+    document.getElementById('user-display-name').textContent = user.name || user.email;
+    document.getElementById('user-role-badge').textContent = user.role + (user.wardScope ? ' • ' + user.wardScope : '');
+
+    // Show top bar & bottom nav
+    document.getElementById('top-bar').classList.remove('hidden');
+    document.getElementById('bottom-nav').classList.remove('hidden');
+
+    // Role-specific nav adjustments
+    if (user.role === 'WARD') {
+      document.querySelectorAll('.nav-pharmacy-only').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-admin-only').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-ward-only').forEach(el => el.classList.remove('hidden'));
+      
+      const wardScopeBadge = document.getElementById('ward-scope-badge');
+      if (wardScopeBadge) wardScopeBadge.textContent = user.wardScope || 'ตึกพิเศษ';
+      
+      const sendWardVal = document.getElementById('send-ward-value');
+      if (sendWardVal) sendWardVal.textContent = user.wardScope || 'ตึกพิเศษ';
+
+      this.navigate('ward-dashboard');
+    } else if (user.role === 'PHARMACY') {
+      document.querySelectorAll('.nav-ward-only').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-admin-only').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-pharmacy-only').forEach(el => el.classList.remove('hidden'));
+
+      this.navigate('pharmacy-dashboard');
+    } else if (user.role === 'SUPER_ADMIN') {
+      document.querySelectorAll('.nav-ward-only').forEach(el => el.classList.remove('hidden'));
+      document.querySelectorAll('.nav-pharmacy-only').forEach(el => el.classList.remove('hidden'));
+      document.querySelectorAll('.nav-admin-only').forEach(el => el.classList.remove('hidden'));
+
+      this.navigate('pharmacy-dashboard');
+    }
+
+    // Start background polling (every 15 seconds)
+    this.startPolling(15000);
+    this.refreshData();
+  },
+
+  /**
+   * Show Access Denied View
+   */
+  showAuthDenied: function(res) {
+    document.getElementById('view-auth-loading').classList.add('hidden');
+    document.getElementById('view-auth-denied').classList.remove('hidden');
+    if (res) {
+      if (res.email) document.getElementById('denied-email').textContent = res.email;
+      if (res.message) document.getElementById('denied-message').textContent = res.message;
+      if (res.status) document.getElementById('denied-status').textContent = res.status;
+    }
+  },
+
+  /**
+   * Screen Navigation Router
+   */
+  navigate: function(screenId) {
+    // Hide all views
+    const views = [
+      'view-auth-loading', 'view-auth-denied', 'view-ward-dashboard', 
+      'view-pharmacy-dashboard', 'view-board', 'view-send-patient', 
+      'view-analytics', 'view-admin'
+    ];
+    views.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+
+    // Update active nav links
+    document.querySelectorAll('.nav-link').forEach(link => {
+      if (link.getAttribute('data-screen') === screenId) {
+        link.classList.add('bg-[#f0edef]', 'text-[#0059b5]', 'font-semibold');
+      } else {
+        link.classList.remove('bg-[#f0edef]', 'text-[#0059b5]', 'font-semibold');
+      }
+    });
+
+    const targetEl = document.getElementById('view-' + screenId);
+    if (targetEl) {
+      targetEl.classList.remove('hidden');
+      this.currentScreen = screenId;
+
+      // Screen-specific triggers
+      if (screenId === 'send-patient') {
+        this.loadIpdSyncedOrders();
+      } else if (screenId === 'analytics') {
+        this.loadAnalytics();
+      } else if (screenId === 'admin') {
+        this.loadAdmin();
+      }
+    }
+  },
+
+  /**
+   * Background Polling
+   */
+  startPolling: function(intervalMs) {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = setInterval(() => {
+      App.refreshData(false);
+    }, intervalMs || 15000);
+  },
+
+  /**
+   * Refresh all live operational data
+   */
+  refreshData: function(manualTrigger) {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+
+    if (manualTrigger) {
+      this.showToast('กำลังรีเฟรชข้อมูล...', 'info');
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        App.isRefreshing = false;
+        if (res && res.success && res.data) {
+          App.cases = res.data;
+          App.renderCurrentScreen();
+          if (manualTrigger) App.showToast('อัปเดตข้อมูลล่าสุดเรียบร้อย', 'success');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.isRefreshing = false;
+        if (manualTrigger) App.showToast('ไม่สามารถรีเฟรชข้อมูล: ' + err.message, 'error');
+      })
+      .apiListCases();
+
+    // Check notifications
+    this.loadNotifications();
+  },
+
+  /**
+   * Render view according to active screen
+   */
+  renderCurrentScreen: function() {
+    if (this.currentScreen === 'ward-dashboard') {
+      this.renderWardDashboard();
+    } else if (this.currentScreen === 'pharmacy-dashboard') {
+      this.renderPharmacyDashboard();
+    } else if (this.currentScreen === 'board') {
+      this.renderBoard();
+    }
+  },
+
+  // =========================================================================
+  // 1. IPD INTRANET SYNC INTEGRATION (Send Patient Page)
+  // =========================================================================
+
+  /**
+   * Loads synced discharge orders from IPD_Orders sheet (synced via Python from 192.168.0.197)
+   */
+  loadIpdSyncedOrders: function(manual) {
+    const container = document.getElementById('ipd-sync-container');
+    const badge = document.getElementById('ipd-sync-count-badge');
+    if (!container) return;
+
+    if (manual) {
+      container.innerHTML = `
+        <div class="p-6 text-center text-xs text-[#86868b] bg-[#fcf8fb] rounded-lg border border-dashed border-[#e4e2e4]">
+          <div class="w-5 h-5 border-2 border-[#0071e3]/30 border-t-[#0071e3] rounded-full animate-spin mx-auto mb-2"></div>
+          กำลังโหลดรายการใบสั่งยากลับบ้านจาก Intranet...
+        </div>
+      `;
+    }
+
+    const currentWard = this.currentUser ? this.currentUser.wardScope : null;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          App.syncedIpdOrders = res.data.orders || [];
+          App.renderIpdSyncedOrders(res.data);
+          if (manual) App.showToast('ดึงข้อมูล Sync จาก Intranet สำเร็จ (' + App.syncedIpdOrders.length + ' รายการ)', 'success');
+        } else {
+          container.innerHTML = `
+            <div class="p-4 text-center text-xs text-[#86868b] bg-[#fcf8fb] rounded-lg">
+              ไม่พบรายการ Sync จาก Intranet
+            </div>
+          `;
+          if (badge) badge.textContent = '0';
+        }
+      })
+      .withFailureHandler(function(err) {
+        container.innerHTML = `
+          <div class="p-4 text-center text-xs text-[#ba1a1a] bg-[#ffdad6]/40 rounded-lg">
+            เกิดข้อผิดพลาดในการโหลดข้อมูล Sync: ${err.message}
+          </div>
+        `;
+      })
+      .apiGetIpdSyncedOrders(currentWard);
+  },
+
+  /**
+   * Renders the IPD Intranet Synced Orders cards
+   */
+  renderIpdSyncedOrders: function(data) {
+    const container = document.getElementById('ipd-sync-container');
+    const badge = document.getElementById('ipd-sync-count-badge');
+    if (!container) return;
+
+    const orders = data.orders || [];
+    if (badge) badge.textContent = orders.length;
+
+    if (orders.length === 0) {
+      container.innerHTML = `
+        <div class="p-5 text-center text-xs text-[#86868b] bg-[#fcf8fb] rounded-lg border border-dashed border-[#e4e2e4]">
+          <span class="material-symbols-outlined text-2xl text-[#86868b] mb-1 block">task_alt</span>
+          ไม่พบรายการใบสั่งยากลับบ้านใหม่จาก Intranet ในขณะนี้<br>
+          <span class="text-[11px] text-[#86868b]/80">(ท่านสามารถกรอก AN และห้องด้านล่างได้ตามปกติ)</span>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-1">';
+    orders.forEach(order => {
+      const isAlreadySubmitted = order.isSubmitted;
+      const statusPill = isAlreadySubmitted 
+        ? `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1">
+             <span class="material-symbols-outlined text-xs">check_circle</span> ส่งห้องยาแล้ว (${order.existingCase.stateThai || ''})
+           </span>`
+        : `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#28cd41] text-white flex items-center gap-1">
+             <span class="material-symbols-outlined text-xs">medication</span> ยากลับบ้าน (HME)
+           </span>`;
+
+      const actionBtn = isAlreadySubmitted
+        ? `<button type="button" disabled class="px-3 py-1.5 text-xs bg-[#f0edef] text-[#86868b] rounded-lg font-medium cursor-not-allowed">
+             ส่งแล้ว
+           </button>`
+        : `<button type="button" onclick="App.selectIpdOrder('${order.rawAn}', '${order.roomBed}')" 
+             class="px-3 py-1.5 text-xs bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg font-medium flex items-center gap-1 shadow-sm transition-all">
+             <span class="material-symbols-outlined text-xs">add_circle</span> เลือกส่งเคสนี้
+           </button>`;
+
+      html += `
+        <div class="p-3 bg-white border ${isAlreadySubmitted ? 'border-[#e4e2e4] opacity-75' : 'border-[#0071e3]/30 hover:border-[#0071e3]'} rounded-xl shadow-xs space-y-2 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-[#1b1b1d] font-mono">${order.maskedAn}</span>
+            ${statusPill}
+          </div>
+          <div class="flex items-center justify-between text-xs text-[#414753]">
+            <span class="font-medium flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs text-[#0071e3]">meeting_room</span>
+              ${order.roomBed || 'ไม่ระบุห้อง'}
+            </span>
+            <span class="text-[11px] text-[#86868b]">${order.orderTime || ''}</span>
+          </div>
+          <div class="flex items-center justify-between pt-1 border-t border-[#e4e2e4]/50">
+            <span class="text-[10px] text-[#86868b] truncate max-w-[120px]">${order.patientName || order.ward}</span>
+            ${actionBtn}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+  },
+
+  /**
+   * One-click selection from IPD Intranet Synced list into the Send Patient form
+   */
+  selectIpdOrder: function(rawAn, roomBed) {
+    const anInput = document.getElementById('send-an');
+    const roomInput = document.getElementById('send-room-bed');
+    const badge = document.getElementById('selected-from-sync-badge');
+
+    if (anInput) {
+      anInput.value = rawAn;
+      this.formatAnPreview(rawAn);
+    }
+    if (roomInput) {
+      roomInput.value = roomBed || '';
+    }
+    if (badge) {
+      badge.classList.remove('hidden');
+    }
+
+    // Scroll smoothly to form and emphasize submit button
+    const form = document.getElementById('form-send-patient');
+    if (form) {
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const submitBtn = document.getElementById('btn-submit-case');
+      if (submitBtn) {
+        submitBtn.classList.add('ring-4', 'ring-[#0071e3]/30');
+        setTimeout(() => submitBtn.classList.remove('ring-4', 'ring-[#0071e3]/30'), 1500);
+      }
+    }
+
+    this.showToast(`เลือกข้อมูล AN: ${rawAn} (ห้อง ${roomBed}) แล้ว`, 'success');
+  },
+
+  /**
+   * Formats AN mask preview live
+   */
+  formatAnPreview: function(val) {
+    const preview = document.getElementById('an-mask-preview');
+    if (!preview) return;
+    const clean = String(val || '').trim();
+    if (!clean) {
+      preview.textContent = 'AN ••••••••';
+      return;
+    }
+    if (clean.length <= 4) {
+      preview.textContent = 'AN •••' + clean;
+    } else {
+      const prefix = clean.substring(0, 2);
+      const suffix = clean.substring(clean.length - 4);
+      preview.textContent = 'AN ' + prefix + '•••' + suffix;
+    }
+  },
+
+  /**
+   * Quick Room Selection Button
+   */
+  selectQuickRoom: function(room) {
+    const roomInput = document.getElementById('send-room-bed');
+    if (roomInput) {
+      roomInput.value = room;
+    }
+  },
+
+  /**
+   * Submits the Send Patient Form
+   */
+  handleSendPatient: function(e) {
+    e.preventDefault();
+    const anInput = document.getElementById('send-an');
+    const roomInput = document.getElementById('send-room-bed');
+    const apptInputs = document.getElementsByName('appointmentStatus');
+    const btn = document.getElementById('btn-submit-case');
+
+    let apptStatus = 'นัดหมายแล้ว';
+    for (let r of apptInputs) {
+      if (r.checked) {
+        apptStatus = r.value;
+        break;
+      }
+    }
+
+    const payload = {
+      an: anInput.value.trim(),
+      roomBed: roomInput.value.trim(),
+      appointmentStatus: apptStatus
+    };
+
+    if (!payload.an || !payload.roomBed) {
+      this.showToast('กรุณาระบุ AN และ ห้อง/เตียง ให้ครบถ้วน', 'warning');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span> กำลังส่ง...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-lg">send</span> ส่งให้ห้องยา';
+
+        if (res && res.success) {
+          App.showToast('ส่งข้อมูลให้ห้องยาเรียบร้อย (' + (res.data ? res.data.caseId : '') + ')', 'success');
+          anInput.value = '';
+          roomInput.value = '';
+          App.formatAnPreview('');
+          document.getElementById('selected-from-sync-badge').classList.add('hidden');
+          
+          App.navigate('ward-dashboard');
+          App.refreshData(true);
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-lg">send</span> ส่งให้ห้องยา';
+        App.showToast('ไม่สามารถส่งข้อมูล: ' + err.message, 'error');
+      })
+      .apiCreateCase(payload);
+  },
+
+  // =========================================================================
+  // 2. WARD DASHBOARD RENDERING
+  // =========================================================================
+  renderWardDashboard: function() {
+    const readyCases = this.cases.filter(c => c.currentState === 'READY');
+    const inprogCases = this.cases.filter(c => c.currentState === 'IN_PROGRESS');
+    const submittedCases = this.cases.filter(c => c.currentState === 'SUBMITTED');
+
+    // Counts
+    document.getElementById('ward-ready-count').textContent = readyCases.length;
+    document.getElementById('ward-inprog-count').textContent = inprogCases.length;
+    document.getElementById('ward-submitted-count').textContent = submittedCases.length;
+    document.getElementById('ward-ready-time').textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+    // 1. Ready Cards
+    const readyContainer = document.getElementById('ward-ready-cards');
+    if (readyCases.length === 0) {
+      readyContainer.innerHTML = `
+        <div class="col-span-full p-8 text-center bg-white rounded-xl border border-[#e4e2e4] text-[#86868b] space-y-1">
+          <span class="material-symbols-outlined text-3xl text-[#28cd41]">check_circle</span>
+          <p class="text-xs">ยังไม่มีรายการยาพร้อมจ่ายในขณะนี้</p>
+        </div>
+      `;
+    } else {
+      let html = '';
+      readyCases.forEach(c => {
+        html += `
+          <div onclick="App.openCaseDetail('${c.caseId}')" class="medready-card medready-card-interactive p-5 cursor-pointer border-l-4 border-l-[#28cd41] space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm text-[#0059b5]">${c.caseId}</span>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#28cd41]"></span> พร้อมจ่าย
+              </span>
+            </div>
+            <div>
+              <div class="font-display font-semibold text-lg text-[#1b1b1d]">${c.roomBed}</div>
+              <div class="font-mono text-xs text-[#86868b]">${c.maskedAn}</div>
+            </div>
+            <div class="pt-2 border-t border-[#e4e2e4] flex items-center justify-between text-xs text-[#86868b]">
+              <span>พร้อมตั้งแต่: ${c.readyAt ? new Date(c.readyAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+              <span class="text-[#0071e3] font-medium flex items-center gap-0.5">ดูรายละเอียด <span class="material-symbols-outlined text-xs">chevron_right</span></span>
+            </div>
+          </div>
+        `;
+      });
+      readyContainer.innerHTML = html;
+    }
+
+    // 2. In Progress List
+    const inprogContainer = document.getElementById('ward-inprog-list');
+    if (inprogCases.length === 0) {
+      inprogContainer.innerHTML = '<div class="text-xs text-[#86868b] p-4 text-center bg-white rounded-lg border border-[#e4e2e4]">ไม่มีรายการกำลังเตรียมยา</div>';
+    } else {
+      let html = '';
+      inprogCases.forEach(c => {
+        html += `
+          <div onclick="App.openCaseDetail('${c.caseId}')" class="p-3.5 bg-white border border-[#e4e2e4] hover:border-[#0071e3] rounded-lg cursor-pointer flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-xs text-[#1b1b1d]">${c.roomBed} (${c.maskedAn})</div>
+              <div class="text-[11px] text-[#86868b]">${c.caseId} • เตรียมมาแล้ว ${c.elapsedText}</div>
+            </div>
+            <span class="material-symbols-outlined text-sm text-[#0071e3]">chevron_right</span>
+          </div>
+        `;
+      });
+      inprogContainer.innerHTML = html;
+    }
+
+    // 3. Submitted List
+    const submittedContainer = document.getElementById('ward-submitted-list');
+    if (submittedCases.length === 0) {
+      submittedContainer.innerHTML = '<div class="text-xs text-[#86868b] p-4 text-center bg-white rounded-lg border border-[#e4e2e4]">ไม่มีรายการรอห้องยา</div>';
+    } else {
+      let html = '';
+      submittedCases.forEach(c => {
+        html += `
+          <div onclick="App.openCaseDetail('${c.caseId}')" class="p-3.5 bg-white border border-[#e4e2e4] hover:border-[#0071e3] rounded-lg cursor-pointer flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-xs text-[#1b1b1d]">${c.roomBed} (${c.maskedAn})</div>
+              <div class="text-[11px] text-[#86868b]">${c.caseId} • ส่งเมื่อ ${c.submittedAt ? new Date(c.submittedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}</div>
+            </div>
+            <span class="material-symbols-outlined text-sm text-[#86868b]">chevron_right</span>
+          </div>
+        `;
+      });
+      submittedContainer.innerHTML = html;
+    }
+  },
+
+  // =========================================================================
+  // 3. PHARMACY DASHBOARD RENDERING
+  // =========================================================================
+  setPharmacyFilter: function(filterKey) {
+    this.pharmacyFilter = filterKey;
+    document.querySelectorAll('.pharm-tab-btn').forEach(btn => {
+      if (btn.getAttribute('data-filter') === filterKey) {
+        btn.classList.add('bg-[#1b1b1d]', 'text-white');
+        btn.classList.remove('bg-white', 'text-[#414753]');
+      } else {
+        btn.classList.remove('bg-[#1b1b1d]', 'text-white');
+        btn.classList.add('bg-white', 'text-[#414753]');
+      }
+    });
+    this.renderPharmacyDashboard();
+  },
+
+  renderPharmacyDashboard: function() {
+    const subCount = this.cases.filter(c => c.currentState === 'SUBMITTED').length;
+    const inpCount = this.cases.filter(c => c.currentState === 'IN_PROGRESS').length;
+    const rdyCount = this.cases.filter(c => c.currentState === 'READY').length;
+    const bskCount = this.cases.filter(c => c.currentState === 'BASKET_RECEIVED').length;
+
+    document.getElementById('pharm-stat-submitted').textContent = subCount;
+    document.getElementById('pharm-stat-inprog').textContent = inpCount;
+    document.getElementById('pharm-stat-basket').textContent = bskCount;
+
+    document.getElementById('pharm-tab-count-all').textContent = this.cases.length;
+    document.getElementById('pharm-tab-count-sub').textContent = subCount;
+    document.getElementById('pharm-tab-count-inp').textContent = inpCount;
+    document.getElementById('pharm-tab-count-rdy').textContent = rdyCount;
+    document.getElementById('pharm-tab-count-bsk').textContent = bskCount;
+
+    const filtered = this.cases.filter(c => {
+      if (this.pharmacyFilter === 'ALL') return true;
+      return c.currentState === this.pharmacyFilter;
+    });
+
+    const container = document.getElementById('pharmacy-queue-cards');
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="p-12 text-center bg-white rounded-xl border border-[#e4e2e4] text-[#86868b]">
+          <span class="material-symbols-outlined text-4xl text-[#86868b] mb-2 block">inbox</span>
+          <p class="text-sm">ไม่มีเคสในคิวนี้</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    filtered.forEach(c => {
+      const slaClass = c.slaBand === 'BREACHED' ? 'sla-strip-breached' : (c.slaBand === 'APPROACHING' ? 'sla-strip-approaching' : 'sla-strip-normal');
+      const nextBtn = c.nextState ? `
+        <button onclick="event.stopPropagation(); App.handleTransitionCase('${c.caseId}', '${c.nextState}', '${c.currentState}')"
+          class="px-4 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5">
+          <span>${c.nextActionLabel || 'ดำเนินการต่อ'}</span>
+          <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </button>
+      ` : '';
+
+      html += `
+        <div onclick="App.openCaseDetail('${c.caseId}')" class="medready-card medready-card-interactive p-4.5 cursor-pointer ${slaClass} flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="font-mono font-bold text-sm text-[#0059b5]">${c.caseId}</span>
+              <span class="font-semibold text-xs text-[#1b1b1d]">${c.wardScope} • ${c.roomBed}</span>
+              <span class="text-xs font-mono text-[#86868b]">(${c.maskedAn})</span>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-[#86868b]">
+              <span>สถานะ: <strong class="text-[#1b1b1d]">${c.stateThai}</strong></span>
+              <span>เวลารวม: <strong class="font-mono text-[#1b1b1d]">${c.elapsedText}</strong></span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${c.slaBand === 'BREACHED' ? 'bg-[#ff3b30]/10 text-[#ff3b30]' : (c.slaBand === 'APPROACHING' ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' : 'bg-[#28cd41]/10 text-[#28cd41]')}">${c.slaLabel}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            ${nextBtn}
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  },
+
+  // =========================================================================
+  // 4. MEDREADY BOARD (Operational Table)
+  // =========================================================================
+  filterBoard: function() {
+    this.renderBoard();
+  },
+
+  renderBoard: function() {
+    const searchVal = (document.getElementById('board-search')?.value || '').toLowerCase().trim();
+    const wardFilter = document.getElementById('board-ward-filter')?.value || 'ALL';
+    const stateFilter = document.getElementById('board-state-filter')?.value || 'ALL';
+
+    const filtered = this.cases.filter(c => {
+      if (wardFilter !== 'ALL' && c.wardScope !== wardFilter) return false;
+      if (stateFilter === 'ACTIVE' && c.currentState === 'DISPENSED') return false;
+      if (stateFilter !== 'ALL' && stateFilter !== 'ACTIVE' && c.currentState !== stateFilter) return false;
+      if (searchVal) {
+        const match = c.caseId.toLowerCase().includes(searchVal) ||
+                      c.rawAn.toLowerCase().includes(searchVal) ||
+                      c.roomBed.toLowerCase().includes(searchVal) ||
+                      c.wardScope.toLowerCase().includes(searchVal);
+        if (!match) return false;
+      }
+      return true;
+    });
+
+    const tbody = document.getElementById('board-table-body');
+    const mobileList = document.getElementById('board-mobile-list');
+    const emptyState = document.getElementById('board-empty');
+
+    if (filtered.length === 0) {
+      if (tbody) tbody.innerHTML = '';
+      if (mobileList) mobileList.innerHTML = '';
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
+
+    // Desktop Rows
+    if (tbody) {
+      let html = '';
+      filtered.forEach(c => {
+        const slaClass = c.slaBand === 'BREACHED' ? 'text-[#ff3b30]' : (c.slaBand === 'APPROACHING' ? 'text-[#ff9f0a]' : 'text-[#28cd41]');
+        html += `
+          <tr onclick="App.openCaseDetail('${c.caseId}')" class="hover:bg-[#f6f3f5] cursor-pointer transition-colors">
+            <td class="py-3 px-4 font-mono font-bold text-[#0059b5]">${c.caseId}</td>
+            <td class="py-3 px-4 font-mono">${c.maskedAn}</td>
+            <td class="py-3 px-4 font-medium">${c.wardScope} / ${c.roomBed}</td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#f0edef] text-[#1b1b1d]">${c.stateThai}</span>
+            </td>
+            <td class="py-3 px-4 font-mono">${c.elapsedText}</td>
+            <td class="py-3 px-4 font-bold text-[11px] ${slaClass}">${c.slaLabel}</td>
+            <td class="py-3 px-4 text-right">
+              <button class="text-[#0071e3] hover:underline font-medium">ดูเคส</button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Mobile List
+    if (mobileList) {
+      let html = '';
+      filtered.forEach(c => {
+        html += `
+          <div onclick="App.openCaseDetail('${c.caseId}')" class="p-4 bg-white cursor-pointer hover:bg-[#f6f3f5] space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-xs text-[#0059b5]">${c.caseId}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f0edef] text-[#1b1b1d]">${c.stateThai}</span>
+            </div>
+            <div class="font-medium text-xs text-[#1b1b1d]">${c.wardScope} / ${c.roomBed} (${c.maskedAn})</div>
+            <div class="flex items-center justify-between text-[11px] text-[#86868b]">
+              <span>เวลารวม: ${c.elapsedText}</span>
+              <span class="font-bold">${c.slaLabel}</span>
+            </div>
+          </div>
+        `;
+      });
+      mobileList.innerHTML = html;
+    }
+  },
+
+  // =========================================================================
+  // 5. CASE ACTIONS & STATE MACHINE
+  // =========================================================================
+  handleTransitionCase: function(caseId, targetState, expectedCurrentState) {
+    this.showToast('กำลังอัปเดตสถานะ...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast(res.message || 'อัปเดตสถานะเรียบร้อย', 'success');
+          App.refreshData(false);
+          if (App.selectedCaseId === caseId) {
+            App.openCaseDetail(caseId);
+          }
+        } else if (res && res.conflict) {
+          document.getElementById('modal-write-conflict').classList.remove('hidden');
+          App.refreshData(true);
+        } else {
+          App.showToast('ไม่สามารถเปลี่ยนสถานะ: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ข้อผิดพลาดระบบ: ' + err.message, 'error');
+      })
+      .apiTransitionCase({
+        caseId: caseId,
+        targetState: targetState,
+        expectedCurrentState: expectedCurrentState
+      });
+  },
+
+  // =========================================================================
+  // 6. CASE DETAIL DRAWER
+  // =========================================================================
+  openCaseDetail: function(caseId) {
+    this.selectedCaseId = caseId;
+    const drawer = document.getElementById('case-detail-drawer');
+    if (!drawer) return;
+    drawer.classList.remove('hidden');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          App.renderCaseDetail(res.data);
+        }
+      })
+      .apiGetCaseDetail(caseId);
+  },
+
+  closeCaseDetail: function() {
+    this.selectedCaseId = null;
+    const drawer = document.getElementById('case-detail-drawer');
+    if (drawer) drawer.classList.add('hidden');
+  },
+
+  renderCaseDetail: function(data) {
+    const c = data.case;
+    const timeline = data.timeline || [];
+    const flags = data.flags || [];
+
+    document.getElementById('drawer-case-id').textContent = c.caseId;
+    document.getElementById('drawer-an').textContent = c.maskedAn;
+    document.getElementById('drawer-room-bed').textContent = c.roomBed;
+    document.getElementById('drawer-ward').textContent = c.wardScope;
+    document.getElementById('drawer-appt').textContent = c.appointmentStatus || 'นัดหมายแล้ว';
+
+    const statusPill = document.getElementById('drawer-status-pill');
+    statusPill.textContent = c.stateThai;
+
+    // Durations
+    document.getElementById('drawer-lead-time').textContent = c.prepLeadText || '-';
+    document.getElementById('drawer-wait-time').textContent = c.patientWaitingText || '-';
+
+    // Progress bar
+    let progress = 10;
+    if (c.currentState === 'IN_PROGRESS') progress = 45;
+    else if (c.currentState === 'READY') progress = 75;
+    else if (c.currentState === 'BASKET_RECEIVED') progress = 85;
+    else if (c.currentState === 'DISPENSED') progress = 100;
+    
+    document.getElementById('drawer-progress-percent').textContent = progress + '%';
+    document.getElementById('drawer-progress-bar').style.width = progress + '%';
+
+    // Issue Flags
+    const flagsContainer = document.getElementById('drawer-flags-list');
+    if (flags.length === 0) {
+      flagsContainer.innerHTML = '<div class="text-xs text-[#86868b] italic">ไม่มีรายการปัญหา</div>';
+    } else {
+      let html = '';
+      flags.forEach(f => {
+        html += `
+          <div class="px-3 py-1.5 bg-[#ffdad6]/40 border border-[#ffdad6] text-[#ba1a1a] rounded-lg text-xs flex items-center justify-between">
+            <span class="font-medium">🚩 ${f.flagType}</span>
+            <span class="text-[10px] text-[#414753]">${new Date(f.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        `;
+      });
+      flagsContainer.innerHTML = html;
+    }
+
+    // Timeline
+    const timelineContainer = document.getElementById('drawer-timeline-list');
+    let tHtml = '';
+    timeline.forEach(t => {
+      tHtml += `
+        <div class="relative text-xs">
+          <div class="w-2.5 h-2.5 rounded-full bg-[#0071e3] absolute -left-[19px] top-1"></div>
+          <div class="font-semibold text-[#1b1b1d]">${t.event}</div>
+          <div class="text-[11px] text-[#86868b]">${t.actor} • ${new Date(t.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+          ${t.details ? `<div class="text-xs text-[#414753] mt-0.5">${t.details}</div>` : ''}
+        </div>
+      `;
+    });
+    timelineContainer.innerHTML = tHtml || '<div class="text-xs text-[#86868b]">ไม่มีประวัติ</div>';
+
+    // Footer action
+    const footer = document.getElementById('drawer-footer-actions');
+    if (c.nextState && (this.currentUser.role === 'PHARMACY' || this.currentUser.role === 'SUPER_ADMIN')) {
+      footer.innerHTML = `
+        <button onclick="App.handleTransitionCase('${c.caseId}', '${c.nextState}', '${c.currentState}')"
+          class="w-full py-3 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-sm font-semibold shadow-sm flex items-center justify-center gap-2">
+          <span>${c.nextActionLabel || 'ดำเนินการต่อ'}</span>
+          <span class="material-symbols-outlined text-base">arrow_forward</span>
+        </button>
+      `;
+    } else {
+      footer.innerHTML = `
+        <button onclick="App.closeCaseDetail()" class="w-full py-2.5 bg-[#f0edef] hover:bg-[#e4e2e4] text-[#414753] rounded-lg text-xs font-semibold">
+          ปิดหน้าต่าง
+        </button>
+      `;
+    }
+  },
+
+  // =========================================================================
+  // 7. NOTIFICATIONS & MODALS
+  // =========================================================================
+  loadNotifications: function() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          App.notifications = res.data;
+          const unreadCount = res.data.filter(n => !n.read).length;
+          const badge = document.getElementById('notif-unread-badge');
+          if (badge) {
+            badge.textContent = unreadCount;
+            if (unreadCount > 0) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+          }
+        }
+      })
+      .apiListNotifications();
+  },
+
+  openNotifications: function() {
+    const drawer = document.getElementById('notifications-drawer');
+    if (!drawer) return;
+    drawer.classList.remove('hidden');
+
+    const list = document.getElementById('notifications-list');
+    if (this.notifications.length === 0) {
+      list.innerHTML = '<div class="text-center py-8 text-xs text-[#86868b]">ไม่มีการแจ้งเตือน</div>';
+      return;
+    }
+
+    let html = '';
+    this.notifications.forEach(n => {
+      html += `
+        <div class="py-3 space-y-1 ${n.read ? 'opacity-60' : 'bg-[#0071e3]/5 p-2 rounded-lg'}">
+          <div class="font-semibold text-xs text-[#1b1b1d]">${n.title}</div>
+          <div class="text-xs text-[#414753]">${n.message}</div>
+          <div class="text-[10px] text-[#86868b]">${new Date(n.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+        </div>
+      `;
+    });
+    list.innerHTML = html;
+  },
+
+  closeNotifications: function() {
+    const drawer = document.getElementById('notifications-drawer');
+    if (drawer) drawer.classList.add('hidden');
+  },
+
+  markAllNotificationsRead: function() {
+    google.script.run
+      .withSuccessHandler(function() {
+        App.loadNotifications();
+      })
+      .apiMarkAllNotificationsRead();
+  },
+
+  openIssueFlagModal: function() {
+    document.getElementById('modal-issue-flag').classList.remove('hidden');
+  },
+
+  closeIssueFlagModal: function() {
+    document.getElementById('modal-issue-flag').classList.add('hidden');
+  },
+
+  submitIssueFlag: function() {
+    const radios = document.getElementsByName('flagType');
+    let selectedFlag = 'อื่น ๆ';
+    for (let r of radios) {
+      if (r.checked) {
+        selectedFlag = r.value;
+        break;
+      }
+    }
+
+    if (!this.selectedCaseId) return;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        App.closeIssueFlagModal();
+        App.showToast('ติดแท็กปัญหาเรียบร้อย', 'success');
+        App.openCaseDetail(App.selectedCaseId);
+      })
+      .apiAddIssueFlag({
+        caseId: this.selectedCaseId,
+        flagType: selectedFlag
+      });
+  },
+
+  closeConflictModal: function() {
+    document.getElementById('modal-write-conflict').classList.add('hidden');
+  },
+
+  // =========================================================================
+  // 8. TOAST NOTIFICATION UTILITY
+  // =========================================================================
+  showToast: function(message, type) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const bgClass = type === 'error' ? 'bg-[#ba1a1a] text-white' : (type === 'warning' ? 'bg-[#ff9f0a] text-white' : (type === 'success' ? 'bg-[#28cd41] text-white' : 'bg-[#1b1b1d] text-white'));
+    
+    toast.className = `pointer-events-auto px-4 py-2.5 rounded-lg shadow-lg text-xs font-medium ${bgClass} flex items-center justify-between gap-3 animate-fade-in transition-all`;
+    toast.innerHTML = `
+      <span>${message}</span>
+      <button onclick="this.parentElement.remove()" class="opacity-70 hover:opacity-100"><span class="material-symbols-outlined text-sm">close</span></button>
+    `;
+
+    container.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentElement) toast.remove();
+    }, 4000);
+  },
+
+  // =========================================================================
+  // 9. ANALYTICS & ADMIN PLACEHOLDERS
+  // =========================================================================
+  loadAnalytics: function() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          const kpis = res.data.kpis || {};
+          document.getElementById('kpi-patient-wait').textContent = (kpis.avgPatientWaitingMinutes || 0) + ' นาที';
+          document.getElementById('kpi-prep-lead').textContent = (kpis.avgPrepLeadMinutes || 0) + ' นาที';
+          document.getElementById('kpi-sla-breach').textContent = (kpis.slaBreachRatePercent || 0) + '%';
+          document.getElementById('kpi-total-cases').textContent = kpis.totalCases || 0;
+          document.getElementById('kpi-completed-cases').textContent = kpis.completedCases || 0;
+        }
+      })
+      .apiGetAnalytics();
+  },
+
+  loadAdmin: function() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          const tbody = document.getElementById('admin-users-table-body');
+          document.getElementById('admin-user-count').textContent = res.data.length + ' คน';
+          let html = '';
+          res.data.forEach(u => {
+            html += `
+              <tr class="hover:bg-[#f6f3f5]">
+                <td class="py-3 px-4 font-mono text-[#0059b5]">${u.email}</td>
+                <td class="py-3 px-4">${u.name}</td>
+                <td class="py-3 px-4 font-semibold">${u.role}</td>
+                <td class="py-3 px-4">${u.wardScope}</td>
+                <td class="py-3 px-4">${u.active ? '🟢 Active' : '🔴 Inactive'}</td>
+                <td class="py-3 px-4 text-[#86868b]">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('th-TH') : '-'}</td>
+                <td class="py-3 px-4 text-right">
+                  <button onclick="App.deleteUser('${u.email}')" class="text-[#ba1a1a] hover:underline text-xs">ลบ</button>
+                </td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = html;
+        }
+      })
+      .apiListUsers();
+  }
+};
+
+// Initialize Application when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  App.init();
+});
+</script>

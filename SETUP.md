@@ -160,23 +160,18 @@ Notes:
    can access.
 2. Copy its **Spreadsheet ID** from the URL:
    `https://docs.google.com/spreadsheets/d/`**`THIS_PART`**`/edit`
-3. In the Apps Script project, store it in **Script Properties** (not
-   hardcoded in source, so it's not committed to GitHub):
-   - Apps Script editor → **Project Settings** → **Script Properties** →
-     add key `SHEET_ID` with the Spreadsheet ID as the value, **or**
-   - programmatically, once, via:
-     ```js
-     PropertiesService.getScriptProperties().setProperty('SHEET_ID', 'your-id-here');
-     ```
-4. In code, always read it back rather than hardcoding:
-   ```js
-   const ss = SpreadsheetApp.openById(
-     PropertiesService.getScriptProperties().getProperty('SHEET_ID')
-   );
-   ```
-5. Run `setupSystem()` once from the Apps Script editor (or via a temporary
-   menu item) to create/verify all required sheet tabs and headers (Cases,
-   Timeline, Issue Flags, Users/Allowlist, Settings) idempotently.
+3. In the Apps Script project, bind the Sheet ID using one of the following methods:
+   - **Method A (Easiest)**: Run `setPrimarySpreadsheetId('YOUR_SPREADSHEET_ID')` in Apps Script Editor.
+   - **Method B**: Set `CONFIG.SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID'` in [Config.js](file:///d:/MedReady/src/Config.js).
+   - **Method C**: Project Settings → **Script Properties** → add key `SHEET_ID` with the Spreadsheet ID.
+   - **Method D (Auto)**: If omitted, the system will automatically search Google Drive for an existing "MedReady Database" and bind to it rather than creating duplicate files.
+
+4. **Cleaning up existing duplicate files in Google Drive**:
+   - Run `listDuplicateDatabases()` in Apps Script Editor to view all duplicate spreadsheets.
+   - Run `cleanupDuplicateDatabases(keepSpreadsheetId, trashDuplicates)`:
+     - e.g., `cleanupDuplicateDatabases(null, true)` will automatically pick the best database file, bind it, and move the empty/redundant duplicates to Drive Trash.
+
+5. Run `setupSystem()` once to verify and ensure all sheets, headers, and tabs exist idempotently.
 
 ---
 

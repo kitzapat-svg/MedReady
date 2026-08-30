@@ -9,6 +9,9 @@ const CONFIG = {
   VERSION: '1.0.0',
   TIMEZONE: 'Asia/Bangkok',
   
+  // Explicit Spreadsheet ID (optional - leave empty to auto-detect or use Script Properties)
+  SPREADSHEET_ID: '1-OOO_cdun4sTTP4Ug80OfWqJqvqnlkLg2C87zVw7OwE',
+
   // Sheet Names
   SHEETS: {
     CASES: 'Cases',
@@ -16,7 +19,8 @@ const CONFIG = {
     ISSUE_FLAGS: 'Issue Flags',
     USERS: 'Users',
     SETTINGS: 'Settings',
-    NOTIFICATIONS: 'Notifications'
+    NOTIFICATIONS: 'Notifications',
+    IPD_ORDERS: 'IPD_Orders'
   },
 
   // State Machine (Sequential)
@@ -106,6 +110,18 @@ const CONFIG = {
  * Returns database spreadsheet instance
  */
 function getSpreadsheet() {
+  // 1. Check CONFIG.SPREADSHEET_ID if user defined it
+  if (CONFIG.SPREADSHEET_ID && String(CONFIG.SPREADSHEET_ID).trim() !== '') {
+    try {
+      const ss = SpreadsheetApp.openById(String(CONFIG.SPREADSHEET_ID).trim());
+      PropertiesService.getScriptProperties().setProperty('SHEET_ID', ss.getId());
+      return ss;
+    } catch (e) {
+      Logger.log('Could not open spreadsheet by CONFIG.SPREADSHEET_ID: ' + e.message);
+    }
+  }
+
+  // 2. Check Script Properties
   const scriptProp = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   if (scriptProp) {
     try {
@@ -115,12 +131,32 @@ function getSpreadsheet() {
     }
   }
   
+  // 3. Check Active Spreadsheet (if container-bound)
   try {
     const active = SpreadsheetApp.getActiveSpreadsheet();
-    if (active) return active;
+    if (active) {
+      PropertiesService.getScriptProperties().setProperty('SHEET_ID', active.getId());
+      return active;
+    }
   } catch (e) {}
+
+  // 4. Search Drive for existing "MedReady Database" to reuse single file
+  try {
+    const files = DriveApp.getFilesByName('MedReady Database');
+    while (files.hasNext()) {
+      const file = files.next();
+      if (!file.isTrashed()) {
+        const id = file.getId();
+        PropertiesService.getScriptProperties().setProperty('SHEET_ID', id);
+        Logger.log('Found and bound existing MedReady Database in Drive: ' + id);
+        return SpreadsheetApp.openById(id);
+      }
+    }
+  } catch (e) {
+    Logger.log('Could not search Drive for MedReady Database: ' + e.message);
+  }
   
-  // Safe initialization
+  // 5. Safe initialization (creates or finds single spreadsheet)
   const res = setupSystem();
   if (res && res.spreadsheetId) {
     return SpreadsheetApp.openById(res.spreadsheetId);

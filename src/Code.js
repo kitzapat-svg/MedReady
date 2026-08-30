@@ -52,7 +52,9 @@ function include(filename) {
 function setupSystem(optionalSpreadsheetId) {
   let ss = null;
   const scriptProp = PropertiesService.getScriptProperties();
-  const existingSheetId = optionalSpreadsheetId || scriptProp.getProperty('SHEET_ID');
+  const existingSheetId = optionalSpreadsheetId || 
+                          (CONFIG.SPREADSHEET_ID && String(CONFIG.SPREADSHEET_ID).trim() !== '' ? String(CONFIG.SPREADSHEET_ID).trim() : null) || 
+                          scriptProp.getProperty('SHEET_ID');
 
   if (existingSheetId) {
     try {
@@ -69,11 +71,30 @@ function setupSystem(optionalSpreadsheetId) {
     } catch (e) {}
   }
 
+  // Check Google Drive for an existing "MedReady Database" spreadsheet to avoid creating duplicate files
+  if (!ss) {
+    try {
+      const files = DriveApp.getFilesByName('MedReady Database');
+      while (files.hasNext()) {
+        const file = files.next();
+        if (!file.isTrashed()) {
+          ss = SpreadsheetApp.openById(file.getId());
+          Logger.log('Reusing existing MedReady Database from Drive with ID: ' + ss.getId());
+          break;
+        }
+      }
+    } catch (e) {
+      Logger.log('Could not query Drive for existing MedReady Database: ' + e.message);
+    }
+  }
+
+  // Only create a new spreadsheet if none exists at all
   if (!ss) {
     ss = SpreadsheetApp.create('MedReady Database');
-    scriptProp.setProperty('SHEET_ID', ss.getId());
     Logger.log('Created new MedReady Database spreadsheet with ID: ' + ss.getId());
-  } else if (optionalSpreadsheetId) {
+  }
+
+  if (ss) {
     scriptProp.setProperty('SHEET_ID', ss.getId());
   }
 
@@ -176,6 +197,20 @@ function setupSystem(optionalSpreadsheetId) {
   ];
   ensureSheetWithHeaders(ss, CONFIG.SHEETS.NOTIFICATIONS, notifHeaders, results);
 
+  // 7. IPD Orders Sheet (Sync from Intranet IPDDispensingDashboard)
+  const ipdOrdersHeaders = [
+    'ประเภท',
+    'AN',
+    'ชื่อ-สกุล',
+    'หอผู้ป่วย',
+    'เตียง',
+    'วันที่',
+    'เวลา',
+    'ประเภทยา',
+    'อัปเดตล่าสุด'
+  ];
+  ensureSheetWithHeaders(ss, CONFIG.SHEETS.IPD_ORDERS, ipdOrdersHeaders, results);
+
   // Remove default "Sheet1" if it still exists
   const defaultSheet = ss.getSheetByName('Sheet1');
   if (defaultSheet && ss.getSheets().length > 1) {
@@ -244,4 +279,32 @@ function seedDefaultSettings(settingsSheet, results) {
       results.push('Added setting: ' + item.key + ' = ' + item.value);
     }
   });
+}
+
+/**
+ * Handles Webhook HTTP POST requests (e.g. from Python sync script)
+ */
+function doPost(e) {
+  try {
+    let payload = null;
+    if (e && e.postData && e.postData.contents) {
+      payload = JSON.parse(e.postData.contents);
+    }
+    
+    if (!payload || !payload.orders || !Array.isArray(payload.orders)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Invalid payload: "orders" array required'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const result = apiSyncIpdOrders(payload.orders);
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }

@@ -110,3 +110,146 @@ function apiSaveUser(userData) {
   }
 }
 
+/**
+ * Lists all "MedReady Database" Google Sheets in Drive.
+ * Useful for reviewing duplicate files.
+ */
+function listDuplicateDatabases() {
+  const list = [];
+  const currentSheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  
+  try {
+    const files = DriveApp.getFilesByName('MedReady Database');
+    while (files.hasNext()) {
+      const file = files.next();
+      if (!file.isTrashed()) {
+        const id = file.getId();
+        let casesCount = 0;
+        try {
+          const ss = SpreadsheetApp.openById(id);
+          const casesSheet = ss.getSheetByName(CONFIG.SHEETS.CASES);
+          if (casesSheet) {
+            casesCount = Math.max(0, casesSheet.getLastRow() - 1);
+          }
+        } catch (e) {}
+
+        list.push({
+          id: id,
+          name: file.getName(),
+          url: file.getUrl(),
+          lastUpdated: file.getLastUpdated().toISOString(),
+          casesCount: casesCount,
+          isCurrentActive: id === currentSheetId
+        });
+      }
+    }
+  } catch (err) {
+    Logger.log('Error listing duplicate spreadsheets: ' + err.message);
+  }
+
+  Logger.log('Found ' + list.length + ' "MedReady Database" spreadsheets in Drive.');
+  Logger.log(JSON.stringify(list, null, 2));
+  return list;
+}
+
+/**
+ * Consolidates to a single database.
+ * Sets the chosen spreadsheet as the active SHEET_ID in Script Properties.
+ * Optionally moves duplicate/unused files to Trash.
+ * 
+ * @param {string} keepSpreadsheetId - The Sheet ID to keep as primary (optional).
+ * @param {boolean} trashDuplicates - If true, moves other redundant files to Trash.
+ */
+function cleanupDuplicateDatabases(keepSpreadsheetId, trashDuplicates) {
+  const currentProp = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  let primaryId = keepSpreadsheetId || currentProp;
+  const duplicates = [];
+
+  const files = DriveApp.getFilesByName('MedReady Database');
+  const allFiles = [];
+
+  while (files.hasNext()) {
+    const file = files.next();
+    if (!file.isTrashed()) {
+      allFiles.push(file);
+    }
+  }
+
+  if (allFiles.length === 0) {
+    Logger.log('No "MedReady Database" files found.');
+    return { success: false, message: 'No files found' };
+  }
+
+  // If no primaryId specified or found, pick the one with the latest update or highest case count
+  if (!primaryId) {
+    let maxCases = -1;
+    let selectedFile = allFiles[0];
+
+    for (let i = 0; i < allFiles.length; i++) {
+      try {
+        const ss = SpreadsheetApp.openById(allFiles[i].getId());
+        const cs = ss.getSheetByName(CONFIG.SHEETS.CASES);
+        const count = cs ? cs.getLastRow() : 0;
+        if (count > maxCases) {
+          maxCases = count;
+          selectedFile = allFiles[i];
+        }
+      } catch (e) {}
+    }
+    primaryId = selectedFile.getId();
+  }
+
+  // Save the selected ID into Script Properties
+  PropertiesService.getScriptProperties().setProperty('SHEET_ID', primaryId);
+  Logger.log('Primary MedReady Database set to ID: ' + primaryId);
+
+  // Handle other files
+  let trashedCount = 0;
+  for (let i = 0; i < allFiles.length; i++) {
+    const file = allFiles[i];
+    const fileId = file.getId();
+    if (fileId !== primaryId) {
+      duplicates.push({ id: fileId, name: file.getName(), url: file.getUrl() });
+      if (trashDuplicates === true) {
+        file.setTrashed(true);
+        trashedCount++;
+        Logger.log('Trashed duplicate spreadsheet: ' + fileId);
+      }
+    }
+  }
+
+  // Ensure setup on the primary sheet
+  setupSystem(primaryId);
+
+  return {
+    success: true,
+    primarySpreadsheetId: primaryId,
+    primarySpreadsheetUrl: 'https://docs.google.com/spreadsheets/d/' + primaryId + '/edit',
+    totalFound: allFiles.length,
+    duplicatesCount: duplicates.length,
+    trashedCount: trashedCount,
+    duplicates: duplicates
+  };
+}
+
+/**
+ * Manually bind the system to a specific Google Spreadsheet ID.
+ * @param {string} spreadsheetId - The ID from the Google Sheet URL.
+ */
+function setPrimarySpreadsheetId(spreadsheetId) {
+  if (!spreadsheetId || typeof spreadsheetId !== 'string') {
+    throw new Error('Please provide a valid spreadsheet ID.');
+  }
+  const cleanId = spreadsheetId.trim();
+  const ss = SpreadsheetApp.openById(cleanId);
+  PropertiesService.getScriptProperties().setProperty('SHEET_ID', cleanId);
+  setupSystem(cleanId);
+  Logger.log('Successfully bound MedReady to spreadsheet: ' + cleanId + ' (' + ss.getName() + ')');
+  return {
+    success: true,
+    spreadsheetId: cleanId,
+    spreadsheetName: ss.getName(),
+    url: ss.getUrl()
+  };
+}
+

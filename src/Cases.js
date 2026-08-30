@@ -355,3 +355,179 @@ function apiGetCaseDetail(caseId) {
   }
 }
 
+/**
+ * Gets IPD Dispensing Dashboard orders synced from Intranet
+ * Matches against active MedReady cases to highlight already-submitted patients.
+ */
+function apiGetIpdSyncedOrders(wardFilter) {
+  try {
+    const user = requireAuthorization();
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(CONFIG.SHEETS.IPD_ORDERS);
+    
+    if (!sheet || sheet.getLastRow() <= 1) {
+      return successResponse({
+        orders: [],
+        lastSync: null,
+        count: 0
+      }, 'ยังไม่มีข้อมูล Sync จาก Intranet');
+    }
+
+    const lastRow = sheet.getLastRow();
+    const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
+
+    // Fetch existing active cases to identify already submitted ANs
+    const activeCasesRes = apiListCases();
+    const activeCasesMap = {};
+    if (activeCasesRes.success && activeCasesRes.data) {
+      activeCasesRes.data.forEach(c => {
+        if (c.rawAn) {
+          activeCasesMap[String(c.rawAn).trim().toLowerCase()] = {
+            caseId: c.caseId,
+            currentState: c.currentState,
+            stateThai: CONFIG.STATES[c.currentState] ? CONFIG.STATES[c.currentState].thai : c.currentState,
+            roomBed: c.roomBed,
+            submittedAt: c.submittedAt
+          };
+        }
+      });
+    }
+
+    const targetWard = (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL')
+      ? user.wardScope
+      : (wardFilter && wardFilter !== 'ALL' ? wardFilter : null);
+
+    const orders = [];
+    let latestTimestamp = '';
+
+    for (let i = 0; i < data.length; i++) {
+      const r = data[i];
+      const orderType = String(r[0] || '').trim();
+      const rawAn = String(r[1] || '').trim();
+      const patientName = String(r[2] || '').trim();
+      const ward = String(r[3] || '').trim();
+      const roomBed = String(r[4] || '').trim();
+      const orderDate = String(r[5] || '').trim();
+      const orderTime = String(r[6] || '').trim();
+      const medType = String(r[7] || '').trim();
+      const updatedAt = String(r[8] || '').trim();
+
+      if (!rawAn) continue;
+      if (updatedAt && (!latestTimestamp || updatedAt > latestTimestamp)) {
+        latestTimestamp = updatedAt;
+      }
+
+      // Filter by Ward if applicable
+      if (targetWard && ward && ward !== targetWard) {
+        continue;
+      }
+
+      const cleanAnLower = rawAn.toLowerCase().replace(/[^0-9a-z]/g, '');
+      const existingCase = activeCasesMap[cleanAnLower] || null;
+
+      orders.push({
+        orderType: orderType || 'ใบสั่งยาใหม่',
+        rawAn: rawAn,
+        maskedAn: maskAN(rawAn),
+        patientName: patientName,
+        ward: ward,
+        roomBed: roomBed,
+        orderDate: orderDate,
+        orderTime: orderTime,
+        medType: medType,
+        updatedAt: updatedAt,
+        isSubmitted: !!existingCase,
+        existingCase: existingCase
+      });
+    }
+
+    return successResponse({
+      orders: orders,
+      lastSync: latestTimestamp || null,
+      count: orders.length
+    }, 'ดึงข้อมูล sync สำเร็จ (' + orders.length + ' รายการ)');
+  } catch (err) {
+    return errorResponse(err.message, 'GET_IPD_ORDERS_ERROR');
+  }
+}
+
+/**
+ * Saves/updates synced IPD orders into IPD_Orders sheet
+ */
+function apiSyncIpdOrders(ordersList) {
+  try {
+    if (!ordersList || !Array.isArray(ordersList)) {
+      return errorResponse('พารามิเตอร์ orders ต้องเป็น Array', 'INVALID_INPUT');
+    }
+
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      let sheet = ss.getSheetByName(CONFIG.SHEETS.IPD_ORDERS);
+      if (!sheet) {
+        sheet = ss.insertSheet(CONFIG.SHEETS.IPD_ORDERS);
+      }
+
+      const headers = [
+        'ประเภท',
+        'AN',
+        'ชื่อ-สกุล',
+        'หอผู้ป่วย',
+        'เตียง',
+        'วันที่',
+        'เวลา',
+        'ประเภทยา',
+        'อัปเดตล่าสุด'
+      ];
+
+      sheet.clear();
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+
+      const rows = [];
+      const now = new Date().toISOString();
+
+      ordersList.forEach(item => {
+        if (Array.isArray(item)) {
+          // Array format: [orderType, an, name, ward, bed, date, time, medType, updatedAt]
+          rows.push([
+            item[0] || '',
+            item[1] || '',
+            item[2] || '',
+            item[3] || '',
+            item[4] || '',
+            item[5] || '',
+            item[6] || '',
+            item[7] || '',
+            item[8] || now
+          ]);
+        } else if (typeof item === 'object' && item !== null) {
+          // Object format
+          rows.push([
+            item.orderType || item.type || 'ใบสั่งยาใหม่',
+            item.an || item.rawAn || '',
+            item.patientName || item.name || '',
+            item.ward || '',
+            item.roomBed || item.bed || '',
+            item.orderDate || item.date || '',
+            item.orderTime || item.time || '',
+            item.medType || item.type || 'HME',
+            item.updatedAt || now
+          ]);
+        }
+      });
+
+      if (rows.length > 0) {
+        sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+      }
+
+      return successResponse({
+        count: rows.length,
+        syncedAt: now
+      }, 'บันทึกข้อมูล sync สำเร็จ (' + rows.length + ' รายการ)');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'SYNC_IPD_ORDERS_ERROR');
+  }
+}
+
