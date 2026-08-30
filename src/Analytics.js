@@ -218,7 +218,8 @@ function apiGetDailySummaryList(limit) {
   try {
     const user = requireAuthorization([CONFIG.ROLES.PHARMACY, CONFIG.ROLES.SUPER_ADMIN]);
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName(CONFIG.SHEETS.DAILY_SUMMARIES);
+    const autoSheets = ensureArchiveAndSummarySheets(ss);
+    const sheet = autoSheets.summarySheet;
 
     const summaries = [];
     if (sheet && sheet.getLastRow() > 1) {
@@ -264,6 +265,58 @@ function apiGetDailySummaryList(limit) {
 }
 
 /**
+ * Auto-provision archive and summary sheets if they do not exist yet
+ */
+function ensureArchiveAndSummarySheets(ss) {
+  let summarySheet = ss.getSheetByName(CONFIG.SHEETS.DAILY_SUMMARIES);
+  if (!summarySheet) {
+    summarySheet = ss.insertSheet(CONFIG.SHEETS.DAILY_SUMMARIES);
+    const dailySummaryHeaders = [
+      'Date', 'Total Cases', 'Completed Cases', 'Active Cases',
+      'Avg Patient Waiting (Mins)', 'Avg Prep Lead (Mins)', 'Avg Active Prep (Mins)',
+      'SLA Normal Count', 'SLA Approaching Count', 'SLA Breached Count',
+      'SLA Breach Rate (%)', 'SLA Compliance Rate (%)',
+      'Ward Breakdown JSON', 'Hourly Breakdown JSON', 'Generated At'
+    ];
+    summarySheet.getRange(1, 1, 1, dailySummaryHeaders.length).setValues([dailySummaryHeaders]);
+    try {
+      summarySheet.getRange(1, 1, 1, dailySummaryHeaders.length).setFontWeight('bold').setBackground('#f0edef');
+      summarySheet.setFrozenRows(1);
+    } catch(e) {}
+  }
+
+  let casesArchiveSheet = ss.getSheetByName(CONFIG.SHEETS.CASES_ARCHIVE);
+  if (!casesArchiveSheet) {
+    casesArchiveSheet = ss.insertSheet(CONFIG.SHEETS.CASES_ARCHIVE);
+    const casesArchiveHeaders = [
+      'Case ID', 'AN', 'Room/Bed', 'Appointment Status', 'Ward Scope', 'Current State',
+      'submittedAt', 'startedAt', 'readyAt', 'basketReceivedAt', 'dispensedAt',
+      'SLA Snapshot', 'Created By', 'Updated At', 'Archived At'
+    ];
+    casesArchiveSheet.getRange(1, 1, 1, casesArchiveHeaders.length).setValues([casesArchiveHeaders]);
+    try {
+      casesArchiveSheet.getRange(1, 1, 1, casesArchiveHeaders.length).setFontWeight('bold').setBackground('#f0edef');
+      casesArchiveSheet.setFrozenRows(1);
+    } catch(e) {}
+  }
+
+  let timelineArchiveSheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE_ARCHIVE);
+  if (!timelineArchiveSheet) {
+    timelineArchiveSheet = ss.insertSheet(CONFIG.SHEETS.TIMELINE_ARCHIVE);
+    const timelineArchiveHeaders = [
+      'Log ID', 'Case ID', 'Event', 'Actor', 'Timestamp', 'From State', 'To State', 'Details', 'Archived At'
+    ];
+    timelineArchiveSheet.getRange(1, 1, 1, timelineArchiveHeaders.length).setValues([timelineArchiveHeaders]);
+    try {
+      timelineArchiveSheet.getRange(1, 1, 1, timelineArchiveHeaders.length).setFontWeight('bold').setBackground('#f0edef');
+      timelineArchiveSheet.setFrozenRows(1);
+    } catch(e) {}
+  }
+
+  return { summarySheet, casesArchiveSheet, timelineArchiveSheet };
+}
+
+/**
  * End-of-Day Archiving & Aggregation Engine
  * Calculates metrics for targetDate, writes to Daily_Summaries, and moves old completed records to archive.
  */
@@ -274,11 +327,14 @@ function apiRunDailyArchiving(targetDateStr) {
       const dateToProcess = targetDateStr || getTodayBangkokDateString();
       const ss = getSpreadsheet();
       
+      // Auto-create archive & summary sheets if not present
+      const autoSheets = ensureArchiveAndSummarySheets(ss);
+      const summarySheet = autoSheets.summarySheet;
+      const casesArchiveSheet = autoSheets.casesArchiveSheet;
+      const timelineArchiveSheet = autoSheets.timelineArchiveSheet;
+
       const casesSheet = ss.getSheetByName(CONFIG.SHEETS.CASES);
       const timelineSheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE);
-      const summarySheet = ss.getSheetByName(CONFIG.SHEETS.DAILY_SUMMARIES);
-      const casesArchiveSheet = ss.getSheetByName(CONFIG.SHEETS.CASES_ARCHIVE);
-      const timelineArchiveSheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE_ARCHIVE);
 
       if (!casesSheet || !summarySheet) {
         throw new Error('ไม่พบตาราง Cases หรือ Daily_Summaries ในฐานข้อมูล');
