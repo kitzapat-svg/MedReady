@@ -815,3 +815,57 @@
   </div>
 </div>
 
+<!-- 14. ACCOUNT SWITCH / LOGOUT MODAL -->
+<div id="modal-account-switch" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs hidden">
+  <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl border border-[#e4e2e4]">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center">
+          <span class="material-symbols-outlined text-xl">account_circle</span>
+        </div>
+        <div>
+          <h3 class="font-display text-base font-semibold text-[#1b1b1d]">บัญชีผู้ใช้งาน</h3>
+          <div class="text-[11px] text-[#86868b]">จัดการบัญชีและการเข้าสู่ระบบ</div>
+        </div>
+      </div>
+      <button onclick="App.closeAccountModal()" class="p-1 hover:bg-[#f0edef] rounded-lg text-[#86868b] hover:text-[#1b1b1d]">
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+
+    <!-- Active User Info Card -->
+    <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-4 rounded-xl space-y-2 text-xs">
+      <div class="flex justify-between items-center">
+        <span class="text-[#86868b]">อีเมล Google:</span>
+        <span id="account-modal-email" class="font-mono font-medium text-[#0059b5] text-right truncate max-w-[180px]">-</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-[#86868b]">บทบาท:</span>
+        <span id="account-modal-role" class="font-semibold text-[#1b1b1d]">-</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-[#86868b]">Ward Scope:</span>
+        <span id="account-modal-ward" class="text-[#414753]">-</span>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="space-y-2.5 pt-1">
+      <button type="button" onclick="App.handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-xl text-xs font-semibold shadow-sm transition-all">
+        <span class="material-symbols-outlined text-base">switch_account</span>
+        สลับบัญชี Google อื่น
+      </button>
+
+      <button type="button" onclick="App.showLogin(); App.closeAccountModal();" class="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-white hover:bg-[#f6f3f5] border border-[#d2d2d7] text-[#414753] rounded-xl text-xs font-medium transition-colors">
+        <span class="material-symbols-outlined text-base">login</span>
+        ไปยังหน้า Sign in with Google
+      </button>
+
+      <button type="button" onclick="App.handleGoogleLogout()" class="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-[#ffdad6]/40 hover:bg-[#ffdad6] text-[#ba1a1a] rounded-xl text-xs font-medium transition-colors">
+        <span class="material-symbols-outlined text-base">logout</span>
+        ออกจากระบบ Google ทั้งหมด
+      </button>
+    </div>
+  </div>
+</div>
+

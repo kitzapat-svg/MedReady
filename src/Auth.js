@@ -21,6 +21,12 @@ function getCurrentUser() {
   
   email = (email || '').toLowerCase().trim();
 
+  let webAppUrl = 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec';
+  try {
+    const serviceUrl = ScriptApp.getService().getUrl();
+    if (serviceUrl) webAppUrl = serviceUrl;
+  } catch (e) {}
+
   if (!email) {
     return {
       authenticated: false,
@@ -30,6 +36,7 @@ function getCurrentUser() {
       name: '',
       active: false,
       status: 'UNAUTHENTICATED',
+      webAppUrl: webAppUrl,
       message: 'ไม่พบข้อมูลการเข้าสู่ระบบ Google'
     };
   }
@@ -50,6 +57,7 @@ function getCurrentUser() {
       name: '',
       active: false,
       status: 'ACCESS_DENIED',
+      webAppUrl: webAppUrl,
       message: 'ระบบยังไม่มีรายชื่อผู้ใช้งานที่ได้รับอนุญาต'
     };
   }
@@ -82,6 +90,7 @@ function getCurrentUser() {
       name: email.split('@')[0],
       active: false,
       status: 'ACCESS_DENIED',
+      webAppUrl: webAppUrl,
       message: 'อีเมลนี้ยังไม่ได้รับสิทธิ์เข้าใช้งาน MedReady'
     };
   }
@@ -95,6 +104,7 @@ function getCurrentUser() {
       name: matchedUser.name,
       active: false,
       status: 'ACCOUNT_DEACTIVATED',
+      webAppUrl: webAppUrl,
       message: 'บัญชีผู้ใช้งานของคุณถูกระงับการใช้งานชั่วคราว'
     };
   }
@@ -111,7 +121,8 @@ function getCurrentUser() {
     wardScope: matchedUser.wardScope,
     name: matchedUser.name,
     active: true,
-    status: 'AUTHORIZED'
+    status: 'AUTHORIZED',
+    webAppUrl: webAppUrl
   };
 }
 

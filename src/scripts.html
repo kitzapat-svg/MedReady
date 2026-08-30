@@ -17,7 +17,9 @@ const App = {
   isRefreshing: false,
 
   /**
-    /**
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec',
+
+  /**
    * Application Entry Point
    */
   init: function() {
@@ -36,6 +38,10 @@ const App = {
 
     google.script.run
       .withSuccessHandler(function(res) {
+        if (res && res.webAppUrl) {
+          App.webAppUrl = res.webAppUrl;
+        }
+
         if (!res || !res.authenticated || res.status === 'UNAUTHENTICATED') {
           App.showLogin(res);
           return;
@@ -77,11 +83,11 @@ const App = {
   },
 
   /**
-   * Initiate Google Sign-In / Account Chooser
+   * Initiate Google Sign-In / Account Chooser using canonical Web App URL
    */
   handleGoogleSignIn: function() {
-    const currentUrl = window.location.href;
-    const targetUrl = 'https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(currentUrl);
+    const canonicalUrl = App.webAppUrl || 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec';
+    const targetUrl = 'https://accounts.google.com/AccountChooser?service=wise&continue=' + encodeURIComponent(canonicalUrl);
     try {
       if (window.top && window.top !== window) {
         window.top.location.href = targetUrl;
@@ -92,10 +98,48 @@ const App = {
   },
 
   /**
+   * Google Logout Action
+   */
+  handleGoogleLogout: function() {
+    const targetUrl = 'https://accounts.google.com/Logout';
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.href = targetUrl;
+        return;
+      }
+    } catch (e) {}
+    window.location.href = targetUrl;
+  },
+
+  /**
+   * Open Account Switch / User Profile Modal
+   */
+  openAccountModal: function() {
+    const modal = document.getElementById('modal-account-switch');
+    if (!modal) return;
+    const user = this.currentUser || {};
+    const emailEl = document.getElementById('account-modal-email');
+    if (emailEl) emailEl.textContent = user.email || '-';
+    const roleEl = document.getElementById('account-modal-role');
+    if (roleEl) roleEl.textContent = user.role || '-';
+    const wardEl = document.getElementById('account-modal-ward');
+    if (wardEl) wardEl.textContent = user.wardScope || '-';
+    modal.classList.remove('hidden');
+  },
+
+  /**
+   * Close Account Switch Modal
+   */
+  closeAccountModal: function() {
+    const modal = document.getElementById('modal-account-switch');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  /**
    * Switch Account / Sign Out Action
    */
   handleSignOut: function() {
-    this.handleGoogleSignIn();
+    this.openAccountModal();
   },
 
   /**
