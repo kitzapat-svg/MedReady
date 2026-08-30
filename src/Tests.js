@@ -65,10 +65,10 @@ function runAllTests() {
     assert('Preparation Lead Time formula', prepLeadTime === 30, 'Lead time: ' + prepLeadTime + ' min');
     assert('True Patient Waiting Time formula', truePatientWait === 11, 'Patient wait: ' + truePatientWait + ' min');
 
-    // 7. Test IPD Orders Sync Structure
+    // 7. Test IPD Orders Sync Structure (PDPA: No patient name)
     assert('IPD_ORDERS Sheet Config', CONFIG.SHEETS.IPD_ORDERS === 'IPD_Orders', 'Sheet name is IPD_Orders');
     const syncTestOrders = [
-      ['ใบสั่งยาใหม่', '6912344438', 'ผู้ป่วยทดสอบ 1', 'ตึกพิเศษ', 'EX05', '2026-08-30', '10:15', 'HME', new Date().toISOString()]
+      ['ใบสั่งยาใหม่', '6912344438', 'ตึกพิเศษ', 'EX05', '2026-08-30', '10:15', 'HME', new Date().toISOString()]
     ];
     const syncRes = apiSyncIpdOrders(syncTestOrders);
     assert('API Sync IPD Orders', syncRes && syncRes.success === true, 'apiSyncIpdOrders succeeds');

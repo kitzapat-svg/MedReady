@@ -197,11 +197,10 @@ function setupSystem(optionalSpreadsheetId) {
   ];
   ensureSheetWithHeaders(ss, CONFIG.SHEETS.NOTIFICATIONS, notifHeaders, results);
 
-  // 7. IPD Orders Sheet (Sync from Intranet IPDDispensingDashboard)
+  // 7. IPD Orders Sheet (Sync from Intranet IPDDispensingDashboard - PDPA compliant: No Patient Name)
   const ipdOrdersHeaders = [
     'ประเภท',
     'AN',
-    'ชื่อ-สกุล',
     'หอผู้ป่วย',
     'เตียง',
     'วันที่',

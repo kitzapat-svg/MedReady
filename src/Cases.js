@@ -374,7 +374,8 @@ function apiGetIpdSyncedOrders(wardFilter) {
     }
 
     const lastRow = sheet.getLastRow();
-    const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
+    const lastCol = sheet.getLastColumn();
+    const data = sheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, 8)).getValues();
 
     // Fetch existing active cases to identify already submitted ANs
     const activeCasesRes = apiListCases();
@@ -404,13 +405,32 @@ function apiGetIpdSyncedOrders(wardFilter) {
       const r = data[i];
       const orderType = String(r[0] || '').trim();
       const rawAn = String(r[1] || '').trim();
-      const patientName = String(r[2] || '').trim();
-      const ward = String(r[3] || '').trim();
-      const roomBed = String(r[4] || '').trim();
-      const orderDate = String(r[5] || '').trim();
-      const orderTime = String(r[6] || '').trim();
-      const medType = String(r[7] || '').trim();
-      const updatedAt = String(r[8] || '').trim();
+
+      // PDPA Check: Handle 8-column layout: [type, an, ward, roomBed, date, time, medType, updatedAt]
+      let ward = '';
+      let roomBed = '';
+      let orderDate = '';
+      let orderTime = '';
+      let medType = '';
+      let updatedAt = '';
+
+      if (lastCol === 9) {
+        // Old 9-column format fallback: [type, an, name(skip), ward, bed, date, time, medType, updatedAt]
+        ward = String(r[3] || '').trim();
+        roomBed = String(r[4] || '').trim();
+        orderDate = String(r[5] || '').trim();
+        orderTime = String(r[6] || '').trim();
+        medType = String(r[7] || '').trim();
+        updatedAt = String(r[8] || '').trim();
+      } else {
+        // Standard 8-column PDPA format: [type, an, ward, bed, date, time, medType, updatedAt]
+        ward = String(r[2] || '').trim();
+        roomBed = String(r[3] || '').trim();
+        orderDate = String(r[4] || '').trim();
+        orderTime = String(r[5] || '').trim();
+        medType = String(r[6] || '').trim();
+        updatedAt = String(r[7] || '').trim();
+      }
 
       if (!rawAn) continue;
       if (updatedAt && (!latestTimestamp || updatedAt > latestTimestamp)) {
@@ -429,7 +449,6 @@ function apiGetIpdSyncedOrders(wardFilter) {
         orderType: orderType || 'ใบสั่งยาใหม่',
         rawAn: rawAn,
         maskedAn: maskAN(rawAn),
-        patientName: patientName,
         ward: ward,
         roomBed: roomBed,
         orderDate: orderDate,
@@ -452,7 +471,7 @@ function apiGetIpdSyncedOrders(wardFilter) {
 }
 
 /**
- * Saves/updates synced IPD orders into IPD_Orders sheet
+ * Saves/updates synced IPD orders into IPD_Orders sheet (PDPA Compliant - No Patient Name)
  */
 function apiSyncIpdOrders(ordersList) {
   try {
@@ -470,7 +489,6 @@ function apiSyncIpdOrders(ordersList) {
       const headers = [
         'ประเภท',
         'AN',
-        'ชื่อ-สกุล',
         'หอผู้ป่วย',
         'เตียง',
         'วันที่',
@@ -489,24 +507,36 @@ function apiSyncIpdOrders(ordersList) {
 
       ordersList.forEach(item => {
         if (Array.isArray(item)) {
-          // Array format: [orderType, an, name, ward, bed, date, time, medType, updatedAt]
-          rows.push([
-            item[0] || '',
-            item[1] || '',
-            item[2] || '',
-            item[3] || '',
-            item[4] || '',
-            item[5] || '',
-            item[6] || '',
-            item[7] || '',
-            item[8] || now
-          ]);
+          // Array format: [orderType, an, ward, bed, date, time, medType, updatedAt]
+          // If 9 items passed (with name at index 2), skip index 2
+          if (item.length >= 9) {
+            rows.push([
+              item[0] || '',
+              item[1] || '',
+              item[3] || '',
+              item[4] || '',
+              item[5] || '',
+              item[6] || '',
+              item[7] || '',
+              item[8] || now
+            ]);
+          } else {
+            rows.push([
+              item[0] || '',
+              item[1] || '',
+              item[2] || '',
+              item[3] || '',
+              item[4] || '',
+              item[5] || '',
+              item[6] || '',
+              item[7] || now
+            ]);
+          }
         } else if (typeof item === 'object' && item !== null) {
           // Object format
           rows.push([
             item.orderType || item.type || 'ใบสั่งยาใหม่',
             item.an || item.rawAn || '',
-            item.patientName || item.name || '',
             item.ward || '',
             item.roomBed || item.bed || '',
             item.orderDate || item.date || '',

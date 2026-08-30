@@ -298,9 +298,8 @@ const App = {
               ${order.roomBed || 'ไม่ระบุห้อง'}
             </span>
             <span class="text-[11px] text-[#86868b]">${order.orderTime || ''}</span>
-          </div>
           <div class="flex items-center justify-between pt-1 border-t border-[#e4e2e4]/50">
-            <span class="text-[10px] text-[#86868b] truncate max-w-[120px]">${order.patientName || order.ward}</span>
+            <span class="text-[10px] text-[#86868b] truncate max-w-[120px]">${order.ward || 'ตึกพิเศษ'}</span>
             ${actionBtn}
           </div>
         </div>
