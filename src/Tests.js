@@ -76,6 +76,11 @@ function runAllTests() {
     const getSyncedRes = apiGetIpdSyncedOrders('ตึกพิเศษ');
     assert('API Get Synced IPD Orders', getSyncedRes && getSyncedRes.success === true && getSyncedRes.data.orders.length > 0, 'Found ' + (getSyncedRes.data ? getSyncedRes.data.orders.length : 0) + ' orders');
 
+    // 8. Test Auth and Allowlist Resolution
+    const currentUser = getCurrentUser();
+    assert('Get Current User Returns Status', currentUser && typeof currentUser.status === 'string', 'Current user status: ' + (currentUser ? currentUser.status : 'null'));
+    assert('Bootstrap API Structure', typeof apiGetBootstrap === 'function', 'apiGetBootstrap is defined');
+
   } catch (err) {
     failed++;
     results.push({ name: 'Exception in tests', status: 'FAIL', message: err.message });

@@ -17,6 +17,7 @@ const App = {
   isRefreshing: false,
 
   /**
+    /**
    * Application Entry Point
    */
   init: function() {
@@ -27,9 +28,20 @@ const App = {
    * Check Auth & Initialize Role Views
    */
   checkAuth: function() {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      // Local/Standalone preview: display Google Login screen
+      App.showLogin();
+      return;
+    }
+
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.authenticated || !res.active) {
+        if (!res || !res.authenticated || res.status === 'UNAUTHENTICATED') {
+          App.showLogin(res);
+          return;
+        }
+
+        if (!res.active || res.status === 'ACCESS_DENIED' || res.status === 'ACCOUNT_DEACTIVATED') {
           App.showAuthDenied(res);
           return;
         }
@@ -39,9 +51,51 @@ const App = {
       })
       .withFailureHandler(function(err) {
         App.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message, 'error');
-        App.showAuthDenied({ message: err.message });
+        App.showAuthDenied({ message: err.message, email: '-' });
       })
       .apiGetCurrentUser();
+  },
+
+  /**
+   * Show Google Sign-In Screen
+   */
+  showLogin: function(res) {
+    const sidebar = document.getElementById('main-sidebar');
+    if (sidebar) {
+      sidebar.classList.add('hidden');
+      sidebar.classList.remove('md:flex');
+    }
+    const topBar = document.getElementById('top-bar');
+    if (topBar) topBar.classList.add('hidden');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.classList.add('hidden');
+
+    this.hideAllViews();
+    const loginView = document.getElementById('view-login');
+    if (loginView) loginView.classList.remove('hidden');
+    this.currentScreen = 'login';
+  },
+
+  /**
+   * Initiate Google Sign-In / Account Chooser
+   */
+  handleGoogleSignIn: function() {
+    const currentUrl = window.location.href;
+    const targetUrl = 'https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(currentUrl);
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.href = targetUrl;
+        return;
+      }
+    } catch (e) {}
+    window.location.href = targetUrl;
+  },
+
+  /**
+   * Switch Account / Sign Out Action
+   */
+  handleSignOut: function() {
+    this.handleGoogleSignIn();
   },
 
   /**
@@ -51,12 +105,21 @@ const App = {
     const user = this.currentUser;
     
     // Set user profile info
-    document.getElementById('user-display-name').textContent = user.name || user.email;
-    document.getElementById('user-role-badge').textContent = user.role + (user.wardScope ? ' • ' + user.wardScope : '');
+    const nameEl = document.getElementById('user-display-name');
+    if (nameEl) nameEl.textContent = user.name || user.email;
+    const roleEl = document.getElementById('user-role-badge');
+    if (roleEl) roleEl.textContent = user.role + (user.wardScope ? ' • ' + user.wardScope : '');
 
-    // Show top bar & bottom nav
-    document.getElementById('top-bar').classList.remove('hidden');
-    document.getElementById('bottom-nav').classList.remove('hidden');
+    // Show desktop sidebar, top bar & bottom nav
+    const sidebar = document.getElementById('main-sidebar');
+    if (sidebar) {
+      sidebar.classList.remove('hidden');
+      sidebar.classList.add('md:flex');
+    }
+    const topBar = document.getElementById('top-bar');
+    if (topBar) topBar.classList.remove('hidden');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.classList.remove('hidden');
 
     // Role-specific nav adjustments
     if (user.role === 'WARD') {
@@ -94,22 +157,56 @@ const App = {
    * Show Access Denied View
    */
   showAuthDenied: function(res) {
-    document.getElementById('view-auth-loading').classList.add('hidden');
-    document.getElementById('view-auth-denied').classList.remove('hidden');
+    const sidebar = document.getElementById('main-sidebar');
+    if (sidebar) {
+      sidebar.classList.add('hidden');
+      sidebar.classList.remove('md:flex');
+    }
+    const topBar = document.getElementById('top-bar');
+    if (topBar) topBar.classList.add('hidden');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.classList.add('hidden');
+
+    this.hideAllViews();
+    const deniedView = document.getElementById('view-auth-denied');
+    if (deniedView) deniedView.classList.remove('hidden');
+    this.currentScreen = 'auth-denied';
+
     if (res) {
-      if (res.email) document.getElementById('denied-email').textContent = res.email;
-      if (res.message) document.getElementById('denied-message').textContent = res.message;
-      if (res.status) document.getElementById('denied-status').textContent = res.status;
+      const emailEl = document.getElementById('denied-email');
+      if (emailEl) emailEl.textContent = res.email || '-';
+      
+      const msgEl = document.getElementById('denied-message');
+      if (msgEl && res.message) msgEl.textContent = res.message;
+      
+      const statusEl = document.getElementById('denied-status');
+      if (statusEl) {
+        if (res.status === 'ACCOUNT_DEACTIVATED') {
+          statusEl.textContent = 'บัญชีถูกระงับการใช้งาน';
+        } else if (res.status === 'ACCESS_DENIED') {
+          statusEl.textContent = 'ยังไม่อยู่ใน Allowlist';
+        } else {
+          statusEl.textContent = res.status || 'ไม่มีสิทธิ์เข้าใช้งาน';
+        }
+      }
+
+      const titleEl = document.getElementById('denied-title');
+      if (titleEl) {
+        if (res.status === 'ACCOUNT_DEACTIVATED') {
+          titleEl.textContent = 'บัญชีถูกระงับการใช้งาน';
+        } else {
+          titleEl.textContent = 'ไม่มีสิทธิ์เข้าใช้งาน';
+        }
+      }
     }
   },
 
   /**
-   * Screen Navigation Router
+   * Hide all screen views
    */
-  navigate: function(screenId) {
-    // Hide all views
+  hideAllViews: function() {
     const views = [
-      'view-auth-loading', 'view-auth-denied', 'view-ward-dashboard', 
+      'view-login', 'view-auth-loading', 'view-auth-denied', 'view-ward-dashboard', 
       'view-pharmacy-dashboard', 'view-board', 'view-send-patient', 
       'view-analytics', 'view-admin'
     ];
@@ -117,6 +214,13 @@ const App = {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
     });
+  },
+
+  /**
+   * Screen Navigation Router
+   */
+  navigate: function(screenId) {
+    this.hideAllViews();
 
     // Update active nav links
     document.querySelectorAll('.nav-link').forEach(link => {
