@@ -154,11 +154,10 @@ const App = {
     const roleEl = document.getElementById('user-role-badge');
     if (roleEl) roleEl.textContent = user.role + (user.wardScope ? ' • ' + user.wardScope : '');
 
-    // Show desktop sidebar, top bar & bottom nav
+    // Show desktop sidebar (hidden on mobile screens, flex on md+ desktop screens), top bar & bottom nav
     const sidebar = document.getElementById('main-sidebar');
     if (sidebar) {
-      sidebar.classList.remove('hidden');
-      sidebar.classList.add('md:flex');
+      sidebar.classList.add('hidden', 'md:flex');
     }
     const topBar = document.getElementById('top-bar');
     if (topBar) topBar.classList.remove('hidden');
@@ -291,6 +290,7 @@ const App = {
         this.renderBoard();
       } else if (screenId === 'analytics') {
         this.loadAnalytics();
+        this.loadDailySummaryHistory();
       } else if (screenId === 'admin') {
         this.loadAdmin();
       }
@@ -1205,26 +1205,192 @@ const App = {
   },
 
   // =========================================================================
-  // 9. ANALYTICS & OPERATIONAL INTELLIGENCE
+  // 9. ANALYTICS & OPERATIONAL INTELLIGENCE & ACADEMIC RESEARCH
   // =========================================================================
+  analyticsFilter: {
+    preset: 'TODAY',
+    date: '',
+    startDate: '',
+    endDate: ''
+  },
+
+  /**
+   * Set Analytics Date Filter Preset
+   */
+  setAnalyticsDatePreset: function(preset) {
+    this.analyticsFilter.preset = preset;
+    const today = new Date();
+    const formatDate = (d) => {
+      const year = d.getFullYear();
+      const month = ('0' + (d.getMonth() + 1)).slice(-2);
+      const day = ('0' + d.getDate()).slice(-2);
+      return `${year}-${month}-${day}`;
+    };
+
+    const todayStr = formatDate(today);
+    const dateInput = document.getElementById('analytics-date-input');
+    const badgeEl = document.getElementById('analytics-date-badge');
+
+    // Reset button styles
+    ['today', 'yesterday', 'week', 'all'].forEach(p => {
+      const btn = document.getElementById('btn-preset-' + p);
+      if (btn) {
+        if (p === preset.toLowerCase()) {
+          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0071e3] text-white transition-colors';
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors';
+        }
+      }
+    });
+
+    if (preset === 'TODAY') {
+      this.analyticsFilter.date = todayStr;
+      this.analyticsFilter.startDate = '';
+      this.analyticsFilter.endDate = '';
+      if (dateInput) dateInput.value = todayStr;
+      if (badgeEl) badgeEl.textContent = 'วันนี้ (' + todayStr + ')';
+    } else if (preset === 'YESTERDAY') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yStr = formatDate(y);
+      this.analyticsFilter.date = yStr;
+      this.analyticsFilter.startDate = '';
+      this.analyticsFilter.endDate = '';
+      if (dateInput) dateInput.value = yStr;
+      if (badgeEl) badgeEl.textContent = 'เมื่อวาน (' + yStr + ')';
+    } else if (preset === 'WEEK') {
+      const w = new Date();
+      w.setDate(w.getDate() - 6);
+      const wStr = formatDate(w);
+      this.analyticsFilter.date = '';
+      this.analyticsFilter.startDate = wStr;
+      this.analyticsFilter.endDate = todayStr;
+      if (dateInput) dateInput.value = '';
+      if (badgeEl) badgeEl.textContent = '7 วันล่าสุด (' + wStr + ' ถึง ' + todayStr + ')';
+    } else if (preset === 'ALL') {
+      this.analyticsFilter.date = '';
+      this.analyticsFilter.startDate = '';
+      this.analyticsFilter.endDate = '';
+      if (dateInput) dateInput.value = '';
+      if (badgeEl) badgeEl.textContent = 'ข้อมูลทั้งหมด';
+    }
+
+    this.loadAnalytics();
+  },
+
+  /**
+   * Manual Date Picked
+   */
+  onAnalyticsDateChanged: function(val) {
+    if (!val) return;
+    this.analyticsFilter.preset = 'CUSTOM';
+    this.analyticsFilter.date = val;
+    this.analyticsFilter.startDate = '';
+    this.analyticsFilter.endDate = '';
+
+    // Reset presets buttons styling
+    ['today', 'yesterday', 'week', 'all'].forEach(p => {
+      const btn = document.getElementById('btn-preset-' + p);
+      if (btn) btn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors';
+    });
+
+    const badgeEl = document.getElementById('analytics-date-badge');
+    if (badgeEl) badgeEl.textContent = val;
+
+    this.loadAnalytics();
+  },
+
+  /**
+   * Load Analytics & KPIs
+   */
   loadAnalytics: function() {
+    // Default to today if first load
+    if (!this.analyticsFilter.date && !this.analyticsFilter.startDate && this.analyticsFilter.preset === 'TODAY') {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = ('0' + (today.getMonth() + 1)).slice(-2);
+      const day = ('0' + today.getDate()).slice(-2);
+      this.analyticsFilter.date = `${year}-${month}-${day}`;
+      const dateInput = document.getElementById('analytics-date-input');
+      if (dateInput) dateInput.value = this.analyticsFilter.date;
+    }
+
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
           const kpis = res.data;
           const waitEl = document.getElementById('kpi-patient-wait');
           const prepEl = document.getElementById('kpi-prep-lead');
+          const compSlaEl = document.getElementById('kpi-sla-compliance');
           const breachEl = document.getElementById('kpi-sla-breach');
           const totalEl = document.getElementById('kpi-total-cases');
           const compEl = document.getElementById('kpi-completed-cases');
 
           if (waitEl) waitEl.textContent = kpis.avgPatientWaitingText || (kpis.avgPatientWaitingMinutes + ' นาที');
           if (prepEl) prepEl.textContent = kpis.avgPrepLeadText || (kpis.avgPrepLeadMinutes + ' นาที');
+          if (compSlaEl) compSlaEl.textContent = (kpis.slaComplianceRate != null ? kpis.slaComplianceRate : 100) + '%';
           if (breachEl) breachEl.textContent = (kpis.slaBreachRate || 0) + '%';
           if (totalEl) totalEl.textContent = kpis.totalCases || 0;
           if (compEl) compEl.textContent = kpis.completedCases || 0;
 
-          // Render Stage Distribution
+          // 1. Render Waiting Time Buckets (Academic Core Metric)
+          const waitBucketEl = document.getElementById('analytics-wait-buckets');
+          if (waitBucketEl && kpis.waitingTimeBuckets) {
+            const completedCount = kpis.completedCases || 1;
+            const b = kpis.waitingTimeBuckets;
+            const buckets = [
+              { label: 'น้อยกว่า 15 นาที (เร็วมาก)', count: b.under15 || 0, color: 'bg-[#28cd41]', textCol: 'text-[#28cd41]' },
+              { label: '15 - 30 นาที (มาตรฐานดีมาก)', count: b.under30 || 0, color: 'bg-[#0071e3]', textCol: 'text-[#0071e3]' },
+              { label: '31 - 45 นาที (ใกล้เกณฑ์ SLA)', count: b.under45 || 0, color: 'bg-[#ff9f0a]', textCol: 'text-[#ff9f0a]' },
+              { label: 'มากกว่า 45 นาที (เกิน SLA)', count: b.over45 || 0, color: 'bg-[#ff3b30]', textCol: 'text-[#ff3b30]' }
+            ];
+            let bHtml = '';
+            buckets.forEach(item => {
+              const pct = completedCount > 0 ? Math.round((item.count / completedCount) * 100) : 0;
+              bHtml += `
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs">
+                    <span class="font-medium text-[#1b1b1d]">${item.label}</span>
+                    <span class="font-mono ${item.textCol} font-semibold">${item.count} เคส (${pct}%)</span>
+                  </div>
+                  <div class="w-full h-2 bg-[#f0edef] rounded-full overflow-hidden">
+                    <div class="h-full ${item.color} rounded-full transition-all" style="width: ${pct}%"></div>
+                  </div>
+                </div>
+              `;
+            });
+            waitBucketEl.innerHTML = bHtml;
+          }
+
+          // 2. Render Hourly Volume Flow
+          const hourlyEl = document.getElementById('analytics-hourly-list');
+          if (hourlyEl && kpis.hourlyBreakdown) {
+            const hours = Object.keys(kpis.hourlyBreakdown).sort();
+            const total = kpis.totalCases || 1;
+            if (hours.length === 0) {
+              hourlyEl.innerHTML = '<div class="text-xs text-[#86868b] text-center py-4">ไม่มีข้อมูลเคสในช่วงเวลานี้</div>';
+            } else {
+              let hHtml = '';
+              hours.forEach(h => {
+                const count = kpis.hourlyBreakdown[h] || 0;
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                hHtml += `
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                      <span class="font-medium text-[#1b1b1d]">${h} น.</span>
+                      <span class="font-mono text-[#5d5e60]">${count} เคส (${pct}%)</span>
+                    </div>
+                    <div class="w-full h-2 bg-[#f0edef] rounded-full overflow-hidden">
+                      <div class="h-full bg-[#0071e3] rounded-full transition-all" style="width: ${pct}%"></div>
+                    </div>
+                  </div>
+                `;
+              });
+              hourlyEl.innerHTML = hHtml;
+            }
+          }
+
+          // 3. Render Stage Distribution
           const stageListEl = document.getElementById('analytics-stage-list');
           if (stageListEl && kpis.stageCounts) {
             const stages = [
@@ -1254,7 +1420,7 @@ const App = {
             stageListEl.innerHTML = sHtml;
           }
 
-          // Render Ward Breakdown
+          // 4. Render Ward Breakdown
           const wardListEl = document.getElementById('analytics-ward-list');
           if (wardListEl && kpis.wardBreakdown) {
             const total = kpis.totalCases || 1;
@@ -1278,15 +1444,138 @@ const App = {
                   </div>
                 `;
               });
+              wardListEl.innerHTML = wHtml;
             }
-            wardListEl.innerHTML = wHtml;
           }
         }
       })
       .withFailureHandler(function(err) {
         App.showToast('ไม่สามารถโหลดข้อมูลสถิติ: ' + err.message, 'error');
       })
-      .apiGetAnalytics();
+      .apiGetAnalytics(this.analyticsFilter);
+  },
+
+  /**
+   * Load Daily Summaries History Table
+   */
+  loadDailySummaryHistory: function() {
+    const tableBody = document.getElementById('daily-summary-table-body');
+    if (!tableBody) return;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          const list = res.data;
+          if (list.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="7" class="py-6 text-center text-[#86868b]">
+                  ยังไม่มีประวัติสรุปข้อมูลรายวัน (กดปุ่ม "สรุปยอด & จัดเก็บ" ด้านบนเพื่อประมวลผลสรุปยอดวันนี้)
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          let html = '';
+          list.forEach(item => {
+            const compRate = item.slaComplianceRate != null ? item.slaComplianceRate : 100;
+            const rateBadge = compRate >= 90 
+              ? '<span class="text-[#28cd41] font-semibold bg-[#28cd41]/10 px-2 py-0.5 rounded">' + compRate + '%</span>'
+              : '<span class="text-[#ff9f0a] font-semibold bg-[#ff9f0a]/10 px-2 py-0.5 rounded">' + compRate + '%</span>';
+
+            html += `
+              <tr class="hover:bg-[#f6f3f5] transition-colors">
+                <td class="py-3 px-4 font-semibold text-[#1b1b1d]">${item.date}</td>
+                <td class="py-3 px-4 text-center font-mono">${item.totalCases}</td>
+                <td class="py-3 px-4 text-center font-mono text-[#28cd41] font-semibold">${item.completedCases}</td>
+                <td class="py-3 px-4 font-mono font-medium">${item.avgPatientWaitingMinutes} นาที</td>
+                <td class="py-3 px-4 font-mono text-[#5d5e60]">${item.avgPrepLeadMinutes} นาที</td>
+                <td class="py-3 px-4 text-center">${rateBadge}</td>
+                <td class="py-3 px-4 text-right space-x-1">
+                  <button onclick="App.onAnalyticsDateChanged('${item.date}')" class="px-2.5 py-1 bg-white border border-[#e4e2e4] text-[#0071e3] hover:bg-[#f0edef] rounded text-[11px] font-medium transition-colors" title="ดูรายละเอียดวันนั้น">
+                    ดูสถิติ
+                  </button>
+                  <button onclick="App.exportAcademicReport('${item.date}')" class="px-2 py-1 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded text-[11px] font-medium transition-colors" title="ดาวน์โหลด CSV">
+                    CSV
+                  </button>
+                </td>
+              </tr>
+            `;
+          });
+          tableBody.innerHTML = html;
+        }
+      })
+      .withFailureHandler(function(err) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-[#ff3b30]">โหลดข้อมูลไม่สำเร็จ: ${err.message}</td></tr>`;
+      })
+      .apiGetDailySummaryList(30);
+  },
+
+  /**
+   * Run Daily Archiving & Aggregation
+   */
+  runDailyArchiving: function() {
+    const targetDate = this.analyticsFilter.date || '';
+    const dateLabel = targetDate || 'วันนี้';
+    if (!confirm(`คุณต้องการประมวลผลสรุปข้อมูลประจำวัน (${dateLabel}) และจัดเก็บประวัติลงในระบบอย่างเป็นทางการใช่หรือไม่?`)) {
+      return;
+    }
+
+    App.showToast(`กำลังประมวลผลสรุปยอดและจัดเก็บข้อมูล ${dateLabel}...`, 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast(res.message || 'จัดเก็บข้อมูลรายวันสำเร็จ', 'success');
+          App.loadAnalytics();
+          App.loadDailySummaryHistory();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      })
+      .apiRunDailyArchiving(targetDate);
+  },
+
+  /**
+   * Export Academic Research Data as CSV
+   */
+  exportAcademicReport: function(specificDate) {
+    const filter = {
+      date: specificDate || this.analyticsFilter.date,
+      startDate: !specificDate ? this.analyticsFilter.startDate : '',
+      endDate: !specificDate ? this.analyticsFilter.endDate : ''
+    };
+
+    App.showToast('กำลังเตรียมข้อมูลวิชาการสำหรับดาวน์โหลด...', 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          const csvContent = res.data.csvContent;
+          const filename = res.data.filename || 'MedReady_Academic_Report.csv';
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          App.showToast(`ดาวน์โหลดข้อมูลวิชาการสำเร็จ (${res.data.rowCount} แถว)`, 'success');
+        } else {
+          App.showToast('ไม่สามารถส่งออกข้อมูล: ' + (res ? res.error : 'Unknown'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ส่งออกข้อมูลล้มเหลว: ' + err.message, 'error');
+      })
+      .apiExportAcademicData(filter);
   },
 
   // =========================================================================

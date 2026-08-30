@@ -210,6 +210,34 @@ function setupSystem(optionalSpreadsheetId) {
   ];
   ensureSheetWithHeaders(ss, CONFIG.SHEETS.IPD_ORDERS, ipdOrdersHeaders, results);
 
+  // 8. Daily Summaries Sheet (Pre-aggregated for lightning fast academic research & long-term reporting)
+  const dailySummaryHeaders = [
+    'Date',
+    'Total Cases',
+    'Completed Cases',
+    'Active Cases',
+    'Avg Patient Waiting (Mins)',
+    'Avg Prep Lead (Mins)',
+    'Avg Active Prep (Mins)',
+    'SLA Normal Count',
+    'SLA Approaching Count',
+    'SLA Breached Count',
+    'SLA Breach Rate (%)',
+    'SLA Compliance Rate (%)',
+    'Ward Breakdown JSON',
+    'Hourly Breakdown JSON',
+    'Generated At'
+  ];
+  ensureSheetWithHeaders(ss, CONFIG.SHEETS.DAILY_SUMMARIES, dailySummaryHeaders, results);
+
+  // 9. Cases Archive Sheet (Historical lean storage)
+  const casesArchiveHeaders = casesHeaders.concat(['Archived At']);
+  ensureSheetWithHeaders(ss, CONFIG.SHEETS.CASES_ARCHIVE, casesArchiveHeaders, results);
+
+  // 10. Timeline Archive Sheet (Historical lean storage)
+  const timelineArchiveHeaders = timelineHeaders.concat(['Archived At']);
+  ensureSheetWithHeaders(ss, CONFIG.SHEETS.TIMELINE_ARCHIVE, timelineArchiveHeaders, results);
+
   // Remove default "Sheet1" if it still exists
   const defaultSheet = ss.getSheetByName('Sheet1');
   if (defaultSheet && ss.getSheets().length > 1) {
@@ -225,6 +253,39 @@ function setupSystem(optionalSpreadsheetId) {
     spreadsheetUrl: ss.getUrl(),
     actions: results
   };
+}
+
+/**
+ * End-of-Day Scheduled Trigger Callback
+ * Can be triggered daily (e.g. at 23:55) via ScriptApp time-driven trigger
+ */
+function triggerDailyArchivingAndSummary() {
+  try {
+    const todayStr = getTodayBangkokDateString();
+    return apiRunDailyArchiving(todayStr);
+  } catch (e) {
+    Logger.log('Error in triggerDailyArchivingAndSummary: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Setup Automated Daily Archiving & Summary Trigger (Runs at 23:55 daily)
+ */
+function setupDailyAutomationTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('triggerDailyArchivingAndSummary')
+    .timeBased()
+    .everyDays(1)
+    .atHour(23)
+    .nearMinute(55)
+    .create();
+  return { success: true, message: 'ตั้งค่า Daily Automation Trigger เวลา 23:55 น. สำเร็จ' };
 }
 
 /**

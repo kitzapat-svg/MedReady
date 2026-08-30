@@ -20,7 +20,10 @@ const CONFIG = {
     USERS: 'Users',
     SETTINGS: 'Settings',
     NOTIFICATIONS: 'Notifications',
-    IPD_ORDERS: 'IPD_Orders'
+    IPD_ORDERS: 'IPD_Orders',
+    DAILY_SUMMARIES: 'Daily_Summaries',
+    CASES_ARCHIVE: 'Cases_Archive',
+    TIMELINE_ARCHIVE: 'Timeline_Archive'
   },
 
   // State Machine (Sequential)

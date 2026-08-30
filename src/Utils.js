@@ -237,3 +237,20 @@ function generateUUID() {
   return Utilities.getUuid();
 }
 
+/**
+ * Get current date string in Asia/Bangkok as YYYY-MM-DD
+ */
+function getTodayBangkokDateString() {
+  return Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy-MM-dd');
+}
+
+/**
+ * Format any date into YYYY-MM-DD in Asia/Bangkok
+ */
+function formatDateBangkok(date) {
+  if (!date) return '';
+  const d = (date instanceof Date) ? date : new Date(date);
+  if (isNaN(d.getTime())) return '';
+  return Utilities.formatDate(d, CONFIG.TIMEZONE, 'yyyy-MM-dd');
+}
+

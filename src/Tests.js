@@ -106,6 +106,17 @@ function runAllTests() {
       assert('API Delete All Notifications', deleteAllRes && deleteAllRes.success === true, 'apiDeleteAllNotifications succeeds');
     }
 
+    // 10. Test Daily Analytics & Archive Sheet Configurations
+    assert('Daily Summaries Sheet Config', CONFIG.SHEETS.DAILY_SUMMARIES === 'Daily_Summaries', 'Sheet is Daily_Summaries');
+    assert('Cases Archive Sheet Config', CONFIG.SHEETS.CASES_ARCHIVE === 'Cases_Archive', 'Sheet is Cases_Archive');
+    assert('Timeline Archive Sheet Config', CONFIG.SHEETS.TIMELINE_ARCHIVE === 'Timeline_Archive', 'Sheet is Timeline_Archive');
+
+    // 11. Test Bangkok Date Formatting
+    const todayBangkok = getTodayBangkokDateString();
+    assert('Get Today Bangkok Date Format', /^\d{4}-\d{2}-\d{2}$/.test(todayBangkok), 'Bangkok date: ' + todayBangkok);
+    const sampleDate = formatDateBangkok('2026-08-30T15:30:00Z');
+    assert('Format Date Bangkok', sampleDate === '2026-08-30', 'Formatted date: ' + sampleDate);
+
   } catch (err) {
     failed++;
     results.push({ name: 'Exception in tests', status: 'FAIL', message: err.message });
