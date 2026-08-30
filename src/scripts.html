@@ -1262,6 +1262,21 @@ const App = {
 
   // =========================================================================
   // 10. ADMIN & SETTINGS MANAGEMENT
+  /**
+   * Helper to format time value to HH:mm string safely
+   */
+  formatTimeString: function(val, defaultVal) {
+    if (!val) return defaultVal || '';
+    const str = String(val).trim();
+    const match = str.match(/(\d{1,2}):(\d{2})/);
+    if (match) {
+      return match[1].padStart(2, '0') + ':' + match[2];
+    }
+    return defaultVal || str;
+  },
+
+  // =========================================================================
+  // ADMIN DASHBOARD & SETTINGS
   // =========================================================================
   loadAdmin: function() {
     // 1. Fetch current SLA & Break settings
@@ -1277,8 +1292,8 @@ const App = {
           if (normInput) normInput.value = settings.SLA_NORMAL_MAX || '30';
           if (appInput) appInput.value = settings.SLA_APPROACHING_MAX || '45';
           if (breakEnabledInput) breakEnabledInput.checked = settings.BREAK_TIME_ENABLED !== 'false';
-          if (breakStartInput) breakStartInput.value = settings.BREAK_TIME_START || '12:00';
-          if (breakEndInput) breakEndInput.value = settings.BREAK_TIME_END || '13:00';
+          if (breakStartInput) breakStartInput.value = App.formatTimeString(settings.BREAK_TIME_START, '12:00');
+          if (breakEndInput) breakEndInput.value = App.formatTimeString(settings.BREAK_TIME_END, '13:00');
         }
       })
       .apiGetSettingsPublic();

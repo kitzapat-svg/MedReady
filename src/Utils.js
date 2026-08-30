@@ -101,12 +101,14 @@ function calculateBreakOverlapMs(startDate, endDate, breakStartStr, breakEndStr)
     const end = new Date(endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() <= start.getTime()) return 0;
 
-    const startParts = String(breakStartStr || '12:00').trim().split(':');
-    const endParts = String(breakEndStr || '13:00').trim().split(':');
-    const startHour = parseInt(startParts[0], 10) || 12;
-    const startMin = parseInt(startParts[1], 10) || 0;
-    const endHour = parseInt(endParts[0], 10) || 13;
-    const endMin = parseInt(endParts[1], 10) || 0;
+    const sStr = String(breakStartStr || '12:00').trim();
+    const eStr = String(breakEndStr || '13:00').trim();
+    const sMatch = sStr.match(/(\d{1,2}):(\d{2})/);
+    const eMatch = eStr.match(/(\d{1,2}):(\d{2})/);
+    const startHour = sMatch ? parseInt(sMatch[1], 10) : 12;
+    const startMin = sMatch ? parseInt(sMatch[2], 10) : 0;
+    const endHour = eMatch ? parseInt(eMatch[1], 10) : 13;
+    const endMin = eMatch ? parseInt(eMatch[2], 10) : 0;
 
     let totalOverlapMs = 0;
     const current = new Date(start.getTime());

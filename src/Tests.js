@@ -65,6 +65,13 @@ function runAllTests() {
     assert('Preparation Lead Time formula', prepLeadTime === 30, 'Lead time: ' + prepLeadTime + ' min');
     assert('True Patient Waiting Time formula', truePatientWait === 11, 'Patient wait: ' + truePatientWait + ' min');
 
+    // 6.1 Test Break Time Overlap Deduction
+    const lunchStart = '2026-08-30T11:45:00Z';
+    const lunchEnd = '2026-08-30T13:15:00Z'; // 90 min total elapsed
+    const breakCfg = { enabled: true, start: '12:00', end: '13:00' };
+    const durWithBreak = getDurationMinutes(lunchStart, lunchEnd, breakCfg);
+    assert('Break Time Deduction (60 min break in 90 min)', durWithBreak === 30, 'Duration after break: ' + durWithBreak + ' min (Expected 30 min)');
+
     // 7. Test IPD Orders Sync Structure (PDPA: No patient name)
     assert('IPD_ORDERS Sheet Config', CONFIG.SHEETS.IPD_ORDERS === 'IPD_Orders', 'Sheet name is IPD_Orders');
     const syncTestOrders = [

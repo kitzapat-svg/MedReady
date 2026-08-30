@@ -16,13 +16,34 @@ function apiGetSettingsPublic() {
       return settings;
     }
 
-    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
-    for (let i = 0; i < data.length; i++) {
-      const key = String(data[i][0] || '').trim();
-      const val = String(data[i][1] || '').trim();
-      if (key) {
-        settings[key] = val;
+    const lastRow = sheet.getLastRow();
+    const rawData = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    const displayData = sheet.getRange(2, 1, lastRow - 1, 2).getDisplayValues();
+
+    for (let i = 0; i < rawData.length; i++) {
+      const key = String(displayData[i][0] || rawData[i][0] || '').trim();
+      if (!key) continue;
+
+      let val = '';
+      if (rawData[i][1] instanceof Date) {
+        if (key === 'BREAK_TIME_START' || key === 'BREAK_TIME_END') {
+          val = Utilities.formatDate(rawData[i][1], CONFIG.TIMEZONE, 'HH:mm');
+        } else {
+          val = Utilities.formatDate(rawData[i][1], CONFIG.TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
+        }
+      } else {
+        val = String(displayData[i][1] !== undefined && displayData[i][1] !== null ? displayData[i][1] : rawData[i][1] || '').trim();
       }
+
+      // If it's a break time and has date string, extract HH:mm
+      if (key === 'BREAK_TIME_START' || key === 'BREAK_TIME_END') {
+        const timeMatch = val.match(/(\d{1,2}):(\d{2})/);
+        if (timeMatch) {
+          val = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+        }
+      }
+
+      settings[key] = val;
     }
 
     return settings;
@@ -61,15 +82,27 @@ function apiUpdateSettings(newSettings) {
 
       for (const [k, v] of Object.entries(newSettings)) {
         const cleanKey = String(k).trim();
-        const cleanVal = String(v).trim();
+        let cleanVal = String(v).trim();
+
+        // Format break times as HH:mm
+        if (cleanKey === 'BREAK_TIME_START' || cleanKey === 'BREAK_TIME_END') {
+          const m = cleanVal.match(/(\d{1,2}):(\d{2})/);
+          if (m) {
+            cleanVal = `${m[1].padStart(2, '0')}:${m[2]}`;
+          }
+        }
         
         if (existingKeys[cleanKey]) {
           const row = existingKeys[cleanKey];
-          sheet.getRange(row, 2).setValue(cleanVal);
+          const valCell = sheet.getRange(row, 2);
+          valCell.setNumberFormat('@'); // Plain text format
+          valCell.setValue(cleanVal);
           sheet.getRange(row, 4).setValue(now);
           sheet.getRange(row, 5).setValue(user.email);
         } else {
           sheet.appendRow([cleanKey, cleanVal, '', now, user.email]);
+          const newRow = sheet.getLastRow();
+          sheet.getRange(newRow, 2).setNumberFormat('@');
         }
         updatedKeys.push(cleanKey);
       }
