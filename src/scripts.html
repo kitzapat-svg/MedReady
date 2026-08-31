@@ -1629,6 +1629,7 @@ const App = {
       .withSuccessHandler(function(res) {
         if (res && res.success) {
           App.showToast(res.message || 'จัดเก็บข้อมูลรายวันสำเร็จ', 'success');
+          App.refreshData(false);
           App.loadAnalytics();
           App.loadDailySummaryHistory();
         } else {
@@ -1651,14 +1652,12 @@ const App = {
       endDate: !specificDate ? this.analyticsFilter.endDate : ''
     };
 
-    App.showToast('กำลังเตรียมข้อมูลวิชาการสำหรับดาวน์โหลด...', 'info');
-    google.script.run
+    App.showToast('กำลังเตรียมข้อมูลสำหรับดาวน์โหลด...', 'info');
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
           const csvContent = res.data.csvContent;
-          const filename = res.data.filename || 'MedReady_Academic_Report.csv';
+          const filename = res.data.filename || 'MedReady_Export_Report.csv';
           
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const link = document.createElement('a');
           const url = URL.createObjectURL(blob);
           link.setAttribute('href', url);
@@ -1669,10 +1668,9 @@ const App = {
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
 
-          App.showToast(`ดาวน์โหลดข้อมูลวิชาการสำเร็จ (${res.data.rowCount} แถว)`, 'success');
+          App.showToast(`ดาวน์โหลดข้อมูลสำเร็จ (${res.data.rowCount} แถว)`, 'success');
         } else {
           App.showToast('ไม่สามารถส่งออกข้อมูล: ' + (res ? res.error : 'Unknown'), 'error');
-        }
       })
       .withFailureHandler(function(err) {
         App.showToast('ส่งออกข้อมูลล้มเหลว: ' + err.message, 'error');

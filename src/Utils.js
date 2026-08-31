@@ -204,27 +204,44 @@ function withLock(callback, timeoutSeconds) {
 
 /**
  * Generate Next Case ID, e.g. MR-0001, MR-0248
+ * Checks both Cases and Cases_Archive to guarantee sequential IDs across daily archiving.
  */
 function generateNextCaseId(casesSheet) {
-  const lastRow = casesSheet.getLastRow();
-  if (lastRow <= 1) {
-    return 'MR-0001';
-  }
-  
-  const idColValues = casesSheet.getRange(2, 1, lastRow - 1, 1).getValues();
   let maxNumber = 0;
-  
-  for (let i = 0; i < idColValues.length; i++) {
-    const val = String(idColValues[i][0] || '').trim();
-    const match = val.match(/^MR-(\d+)$/i);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (!isNaN(num) && num > maxNumber) {
-        maxNumber = num;
+
+  function scanMaxId(sheet) {
+    if (!sheet || sheet.getLastRow() <= 1) return;
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < vals.length; i++) {
+      const val = String(vals[i][0] || '').trim();
+      const match = val.match(/^MR-(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
       }
     }
   }
-  
+
+  // 1. Scan active Cases sheet
+  if (casesSheet) {
+    scanMaxId(casesSheet);
+  }
+
+  // 2. Scan Cases_Archive sheet if available
+  try {
+    const ss = casesSheet ? casesSheet.getParent() : getSpreadsheet();
+    if (ss) {
+      const archiveSheet = ss.getSheetByName(CONFIG.SHEETS.CASES_ARCHIVE);
+      if (archiveSheet) {
+        scanMaxId(archiveSheet);
+      }
+    }
+  } catch (e) {
+    Logger.log('Warning scanning Cases_Archive for next ID: ' + e.message);
+  }
+
   const nextNum = maxNumber + 1;
   const padded = ('0000' + nextNum).slice(-4);
   return 'MR-' + padded;

@@ -221,6 +221,31 @@ function apiListCases(filters) {
     const data = casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues();
     const flagsMap = getActiveIssueFlagsMap();
 
+    // Check if there are past completed cases from previous days that should be auto-archived
+    const todayStr = getTodayBangkokDateString();
+    let hasPastCompletedCases = false;
+    for (let i = 0; i < data.length; i++) {
+      const state = String(data[i][5] || '').trim();
+      const submittedAt = data[i][6] ? toIsoString(data[i][6]) : '';
+      const dispensedAt = data[i][10] ? toIsoString(data[i][10]) : '';
+      const cDate = (dispensedAt ? formatDateBangkok(dispensedAt) : '') || (submittedAt ? formatDateBangkok(submittedAt) : '');
+      if (state === CONFIG.STATES.DISPENSED.key && cDate && cDate < todayStr) {
+        hasPastCompletedCases = true;
+        break;
+      }
+    }
+
+    if (hasPastCompletedCases) {
+      try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = formatDateBangkok(yesterday);
+        archiveCompletedCases(yesterdayStr);
+      } catch (ae) {
+        Logger.log('Auto archiving past completed cases warning: ' + ae.message);
+      }
+    }
+
     const casesList = [];
 
     for (let i = 0; i < data.length; i++) {
@@ -239,6 +264,12 @@ function apiListCases(filters) {
       const basketReceivedAt = r[9] ? toIsoString(r[9]) : '';
       const dispensedAt = r[10] ? toIsoString(r[10]) : '';
       const updatedAt = r[13] ? toIsoString(r[13]) : submittedAt;
+      const caseDate = (dispensedAt ? formatDateBangkok(dispensedAt) : '') || (submittedAt ? formatDateBangkok(submittedAt) : '');
+
+      // Exclude past-day completed cases from live list (they are archived)
+      if (currentState === CONFIG.STATES.DISPENSED.key && caseDate && caseDate < todayStr) {
+        continue;
+      }
 
       // Role-based Ward filter: WARD users only see their assigned ward (unless ALL)
       if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
@@ -334,7 +365,7 @@ function apiListCases(filters) {
 }
 
 /**
- * Gets full details and timeline of a single case
+ * Gets full details and timeline of a single case (searches active Cases and Cases_Archive)
  */
 function apiGetCaseDetail(caseId) {
   try {
@@ -343,9 +374,74 @@ function apiGetCaseDetail(caseId) {
 
     const cleanCaseId = String(caseId).trim();
     const listRes = apiListCases({ caseId: cleanCaseId });
-    if (!listRes.success) return listRes;
+    let matched = (listRes.success && listRes.data) ? listRes.data.find(c => c.caseId === cleanCaseId) : null;
 
-    const matched = listRes.data.find(c => c.caseId === cleanCaseId);
+    // If not found in active cases, search Cases_Archive
+    if (!matched) {
+      const ss = getSpreadsheet();
+      const archiveSheet = ss.getSheetByName(CONFIG.SHEETS.CASES_ARCHIVE);
+      if (archiveSheet && archiveSheet.getLastRow() > 1) {
+        const aData = archiveSheet.getRange(2, 1, archiveSheet.getLastRow() - 1, 14).getValues();
+        for (let i = 0; i < aData.length; i++) {
+          const r = aData[i];
+          if (String(r[0] || '').trim() === cleanCaseId) {
+            const rawAn = String(r[1] || '');
+            const roomBed = String(r[2] || '');
+            const apptStatus = String(r[3] || '');
+            const wardScope = String(r[4] || '');
+            const currentState = String(r[5] || 'DISPENSED');
+            const submittedAt = r[6] ? toIsoString(r[6]) : '';
+            const startedAt = r[7] ? toIsoString(r[7]) : '';
+            const readyAt = r[8] ? toIsoString(r[8]) : '';
+            const basketReceivedAt = r[9] ? toIsoString(r[9]) : '';
+            const dispensedAt = r[10] ? toIsoString(r[10]) : '';
+            const updatedAt = r[13] ? toIsoString(r[13]) : submittedAt;
+            const stateConfig = CONFIG.STATES[currentState] || CONFIG.STATES.DISPENSED;
+
+            const settings = apiGetSettingsPublic();
+            const breakConfig = {
+              enabled: settings.BREAK_TIME_ENABLED !== 'false',
+              start: settings.BREAK_TIME_START || '12:00',
+              end: settings.BREAK_TIME_END || '13:00'
+            };
+            const elapsedMinutes = getDurationMinutes(submittedAt, dispensedAt || null, breakConfig);
+            let patientWaitingMinutes = basketReceivedAt ? getDurationMinutes(basketReceivedAt, dispensedAt || null, breakConfig) : null;
+            let prepLeadMinutes = readyAt ? getDurationMinutes(submittedAt, readyAt, breakConfig) : null;
+
+            matched = {
+              caseId: cleanCaseId,
+              rawAn: rawAn,
+              maskedAn: maskAN(rawAn),
+              roomBed: roomBed,
+              appointmentStatus: apptStatus,
+              wardScope: wardScope,
+              currentState: currentState,
+              stateThai: stateConfig.thai,
+              progress: stateConfig.progress,
+              submittedAt: submittedAt,
+              startedAt: startedAt,
+              readyAt: readyAt,
+              basketReceivedAt: basketReceivedAt,
+              dispensedAt: dispensedAt,
+              updatedAt: updatedAt,
+              elapsedMinutes: elapsedMinutes,
+              elapsedText: formatDurationThai(elapsedMinutes),
+              prepLeadMinutes: prepLeadMinutes,
+              prepLeadText: prepLeadMinutes !== null ? formatDurationThai(prepLeadMinutes) : '-',
+              patientWaitingMinutes: patientWaitingMinutes,
+              patientWaitingText: patientWaitingMinutes !== null ? formatDurationThai(patientWaitingMinutes) : '-',
+              slaBand: 'NORMAL',
+              slaLabel: 'จ่ายยาแล้ว (Archive)',
+              nextState: null,
+              nextActionLabel: null,
+              flags: []
+            };
+            break;
+          }
+        }
+      }
+    }
+
     if (!matched) return errorResponse('ไม่พบข้อมูลเคส ' + cleanCaseId, 'NOT_FOUND');
 
     const timeline = getCaseTimeline(cleanCaseId);

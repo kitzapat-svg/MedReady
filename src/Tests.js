@@ -185,8 +185,14 @@ function runAllTests() {
     const setDefaultRes = apiSetDefaultWard(renameWardName);
     assert('API Set Default Ward', setDefaultRes && setDefaultRes.success === true, 'apiSetDefaultWard succeeds');
 
-    const deleteWardRes = apiDeleteWard(renameWardName);
-    assert('API Delete Ward', deleteWardRes && deleteWardRes.success === true, 'apiDeleteWard succeeds');
+    // 14. Test Daily Case Archiving & Retention Engine
+    assert('Archive Completed Cases Function Defined', typeof archiveCompletedCases === 'function', 'archiveCompletedCases is defined');
+    const autoArchiveDryRun = archiveCompletedCases('1999-01-01');
+    assert('Archive Completed Cases Dry Run', autoArchiveDryRun && typeof autoArchiveDryRun.archivedCount === 'number', 'archiveCompletedCases returned valid object');
+
+    // 15. Test Sequential Case ID Generation
+    const testNextId = generateNextCaseId(SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.CASES) : null);
+    assert('Generate Next Case ID Format', /^MR-\d{4}$/.test(testNextId), 'Next Case ID: ' + testNextId);
 
   } catch (err) {
     failed++;

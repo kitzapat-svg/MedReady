@@ -56,11 +56,18 @@ function apiGetAnalytics(options) {
       filterDate: (options && options.date) || ''
     };
 
-    if (!casesSheet || casesSheet.getLastRow() <= 1) {
-      return successResponse(emptyMetrics);
+    let data = [];
+    if (casesSheet && casesSheet.getLastRow() > 1) {
+      data = data.concat(casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues());
+    }
+    const archiveSheet = ss.getSheetByName(CONFIG.SHEETS.CASES_ARCHIVE);
+    if (archiveSheet && archiveSheet.getLastRow() > 1) {
+      data = data.concat(archiveSheet.getRange(2, 1, archiveSheet.getLastRow() - 1, 14).getValues());
     }
 
-    const data = casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues();
+    if (data.length === 0) {
+      return successResponse(emptyMetrics);
+    }
 
     const targetDate = options && options.date ? String(options.date).trim() : '';
     const startDate = options && options.startDate ? String(options.startDate).trim() : '';
@@ -381,92 +388,120 @@ function apiRunDailyArchiving(targetDateStr) {
         summarySheet.appendRow(summaryRow);
       }
 
-      // 3. Selective Archiving of old completed cases (> 7 days old) to keep active Cases sheet lean
-      let archivedCount = 0;
-      if (casesArchiveSheet && casesSheet.getLastRow() > 1) {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - 7);
-        const cutoffStr = formatDateBangkok(cutoffDate);
-
-        const data = casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues();
-        const rowsToKeep = [];
-        const rowsToArchive = [];
-        const archivedCaseIds = new Set();
-
-        for (let i = 0; i < data.length; i++) {
-          const row = data[i];
-          const caseId = String(row[0] || '').trim();
-          const state = String(row[5] || '').trim();
-          const submittedAt = row[6] ? toIsoString(row[6]) : '';
-          const caseDate = submittedAt ? formatDateBangkok(submittedAt) : '';
-
-          if (state === CONFIG.STATES.DISPENSED.key && caseDate && caseDate < cutoffStr) {
-            const archiveRow = row.concat([new Date().toISOString()]);
-            rowsToArchive.push(archiveRow);
-            archivedCaseIds.add(caseId);
-          } else {
-            rowsToKeep.push(row);
-          }
-        }
-
-        if (rowsToArchive.length > 0) {
-          // Append to Cases_Archive
-          casesArchiveSheet.getRange(casesArchiveSheet.getLastRow() + 1, 1, rowsToArchive.length, rowsToArchive[0].length).setValues(rowsToArchive);
-
-          // Clear Cases sheet and rewrite only rows to keep
-          casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).clearContent();
-          if (rowsToKeep.length > 0) {
-            casesSheet.getRange(2, 1, rowsToKeep.length, rowsToKeep[0].length).setValues(rowsToKeep);
-          }
-          archivedCount = rowsToArchive.length;
-
-          // Also archive corresponding timeline logs
-          if (timelineSheet && timelineArchiveSheet && timelineSheet.getLastRow() > 1) {
-            const tData = timelineSheet.getRange(2, 1, timelineSheet.getLastRow() - 1, 8).getValues();
-            const tKeep = [];
-            const tArchive = [];
-            for (let j = 0; j < tData.length; j++) {
-              const tRow = tData[j];
-              const tCaseId = String(tRow[1] || '').trim();
-              if (archivedCaseIds.has(tCaseId)) {
-                tArchive.push(tRow.concat([new Date().toISOString()]));
-              } else {
-                tKeep.push(tRow);
-              }
-            }
-
-            if (tArchive.length > 0) {
-              timelineArchiveSheet.getRange(timelineArchiveSheet.getLastRow() + 1, 1, tArchive.length, tArchive[0].length).setValues(tArchive);
-              timelineSheet.getRange(2, 1, timelineSheet.getLastRow() - 1, 8).clearContent();
-              if (tKeep.length > 0) {
-                timelineSheet.getRange(2, 1, tKeep.length, tKeep[0].length).setValues(tKeep);
-              }
-            }
-          }
-        }
-      }
-
-      // 4. Cleanup old notifications to prevent database bloat
-      let cleanedNotifsCount = 0;
-      try {
-        const notifCleanRes = cleanupOldNotifications();
-        if (notifCleanRes && notifCleanRes.success) {
-          cleanedNotifsCount = notifCleanRes.count || 0;
-        }
-      } catch (ne) {
-        Logger.log('Notification cleanup warning: ' + ne.message);
-      }
+      // 3. Clear completed cases (DISPENSED) of the target date / past days into Archive
+      const archiveRes = archiveCompletedCases(dateToProcess);
+      const archivedCount = archiveRes.archivedCount || 0;
+      const cleanedNotifsCount = archiveRes.cleanedNotifsCount || 0;
 
       return successResponse({
         date: dateToProcess,
         metrics: metrics,
         archivedOldCasesCount: archivedCount,
         cleanedNotificationsCount: cleanedNotifsCount
-      }, `บันทึกสรุปข้อมูลประจำวัน ${dateToProcess} และจัดเก็บคลังประวัติเรียบร้อยแล้ว (${archivedCount} เคสเก่าถูกย้ายไป Archive, ล้างแจ้งเตือนเก่า ${cleanedNotifsCount} รายการ)`);
+      }, `บันทึกสรุปข้อมูลประจำวัน ${dateToProcess} และเคลียร์เคสที่จ่ายยาเสร็จแล้วเรียบร้อย (${archivedCount} เคสถูกย้ายไป Archive, ล้างแจ้งเตือน ${cleanedNotifsCount} รายการ)`);
     } catch (err) {
       return errorResponse(err.message, 'RUN_ARCHIVE_ERROR');
     }
   }, 45);
+}
+
+/**
+ * Moves completed cases (DISPENSED) to Cases_Archive and Timeline_Archive,
+ * removing them from active Cases & Timeline sheets to keep database lean and fast.
+ * Uncompleted cases (SUBMITTED, IN_PROGRESS, READY, BASKET_RECEIVED) are PRESERVED in Cases sheet.
+ * @param {string} [maxDateStr] - Optional max date (YYYY-MM-DD) to archive. If omitted, archives all DISPENSED cases.
+ */
+function archiveCompletedCases(maxDateStr) {
+  const ss = getSpreadsheet();
+  const autoSheets = ensureArchiveAndSummarySheets(ss);
+  const casesArchiveSheet = autoSheets.casesArchiveSheet;
+  const timelineArchiveSheet = autoSheets.timelineArchiveSheet;
+  const casesSheet = ss.getSheetByName(CONFIG.SHEETS.CASES);
+  const timelineSheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE);
+
+  if (!casesSheet || casesSheet.getLastRow() <= 1) {
+    return { archivedCount: 0, cleanedNotifsCount: 0 };
+  }
+
+  let archivedCount = 0;
+  const data = casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).getValues();
+  const rowsToKeep = [];
+  const rowsToArchive = [];
+  const archivedCaseIds = new Set();
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const caseId = String(row[0] || '').trim();
+    if (!caseId) continue;
+
+    const state = String(row[5] || '').trim();
+    const submittedAt = row[6] ? toIsoString(row[6]) : '';
+    const dispensedAt = row[10] ? toIsoString(row[10]) : '';
+    const caseDate = (dispensedAt ? formatDateBangkok(dispensedAt) : '') || (submittedAt ? formatDateBangkok(submittedAt) : '');
+
+    // Only archive if DISPENSED (completed) and within maxDateStr if specified
+    const shouldArchive = state === CONFIG.STATES.DISPENSED.key && (!maxDateStr || (caseDate && caseDate <= maxDateStr));
+
+    if (shouldArchive) {
+      const archiveRow = row.concat([now]);
+      rowsToArchive.push(archiveRow);
+      archivedCaseIds.add(caseId);
+    } else {
+      rowsToKeep.push(row);
+    }
+  }
+
+  if (rowsToArchive.length > 0) {
+    // 1. Append to Cases_Archive
+    if (casesArchiveSheet) {
+      casesArchiveSheet.getRange(casesArchiveSheet.getLastRow() + 1, 1, rowsToArchive.length, rowsToArchive[0].length).setValues(rowsToArchive);
+    }
+
+    // 2. Rewrite Cases sheet keeping only uncompleted / active rows
+    casesSheet.getRange(2, 1, casesSheet.getLastRow() - 1, 14).clearContent();
+    if (rowsToKeep.length > 0) {
+      casesSheet.getRange(2, 1, rowsToKeep.length, rowsToKeep[0].length).setValues(rowsToKeep);
+    }
+    archivedCount = rowsToArchive.length;
+
+    // 3. Move corresponding timeline events to Timeline_Archive
+    if (timelineSheet && timelineArchiveSheet && timelineSheet.getLastRow() > 1) {
+      const tData = timelineSheet.getRange(2, 1, timelineSheet.getLastRow() - 1, 8).getValues();
+      const tKeep = [];
+      const tArchive = [];
+      for (let j = 0; j < tData.length; j++) {
+        const tRow = tData[j];
+        const tCaseId = String(tRow[1] || '').trim();
+        if (archivedCaseIds.has(tCaseId)) {
+          tArchive.push(tRow.concat([now]));
+        } else {
+          tKeep.push(tRow);
+        }
+      }
+
+      if (tArchive.length > 0) {
+        timelineArchiveSheet.getRange(timelineArchiveSheet.getLastRow() + 1, 1, tArchive.length, tArchive[0].length).setValues(tArchive);
+        timelineSheet.getRange(2, 1, timelineSheet.getLastRow() - 1, 8).clearContent();
+        if (tKeep.length > 0) {
+          timelineSheet.getRange(2, 1, tKeep.length, tKeep[0].length).setValues(tKeep);
+        }
+      }
+    }
+  }
+
+  // 4. Cleanup old notifications
+  let cleanedNotifsCount = 0;
+  try {
+    const notifCleanRes = cleanupOldNotifications();
+    if (notifCleanRes && notifCleanRes.success) {
+      cleanedNotifsCount = notifCleanRes.count || 0;
+    }
+  } catch (ne) {
+    Logger.log('Notification cleanup warning: ' + ne.message);
+  }
+
+  return { archivedCount: archivedCount, cleanedNotifsCount: cleanedNotifsCount };
 }
 
 /**

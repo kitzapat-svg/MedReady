@@ -166,15 +166,23 @@ Each flag entry: `{caseId, flagType, actor, timestamp}`.
 
 | Sheet | Key columns |
 |---|---|
-| **Cases** | Case ID, AN, Room/Bed, Appointment Status, Ward Scope, Current State, `submittedAt`, `startedAt`, `readyAt`, `basketReceivedAt`, `dispensedAt`, SLA snapshot |
-| **Timeline / Audit Log** | Case ID, Event, Actor, Timestamp, From State, To State |
-| **Issue Flags** | Case ID, Flag Type, Actor, Timestamp |
-| **Users / Allowlist** | Email, Role, Ward Scope, Active |
-| **Settings** | SLA threshold(s) in minutes, other admin-configurable values |
+| **Cases** | Case ID, AN, Room/Bed, Appointment Status, Ward Scope, Current State, `submittedAt`, `startedAt`, `readyAt`, `basketReceivedAt`, `dispensedAt`, SLA snapshot, Created By, Updated At |
+| **Cases_Archive** | Same columns as Cases + `Archived At` (Stores completed historical cases to prevent sheet bloat) |
+| **Timeline / Audit Log** | Log ID, Case ID, Event, Actor, Timestamp, From State, To State, Details |
+| **Timeline_Archive** | Same columns as Timeline + `Archived At` |
+| **Daily_Summaries** | Date, Total Cases, Completed Cases, Active Cases, Avg Wait/Prep Times, SLA Breakdown, Ward/Hourly Breakdown JSON |
+| **Issue Flags** | Flag ID, Case ID, Flag Type, Actor, Timestamp, Resolved, Resolved At, Resolved By |
+| **Users / Allowlist** | Email, Role, Ward Scope, Active, Name, Created At, Last Login |
+| **Settings** | Key, Value, Description, Updated At, Updated By |
 | **Notifications** | Notification ID, Case ID, Recipient Ward, Recipient Email, Title, Message, Timestamp, `Read By`, `Dismissed By` |
+| **IPD_Orders** | Sync from Intranet IPDDispensingDashboard (No Patient Name - PDPA compliant) |
 
-`setupSystem()` creates/verifies all sheets and headers idempotently. See
-`SETUP.md`.
+### Daily Case Clearing & Retention Policy
+- **End-of-Day Clearing**: At end of day (automated trigger at 23:55 or upon date rollover), all completed cases (`DISPENSED`) are safely moved from `Cases` and `Timeline` into `Cases_Archive` and `Timeline_Archive`, and daily KPIs are recorded in `Daily_Summaries`.
+- **Active Case Preservation**: Uncompleted cases (`SUBMITTED`, `IN_PROGRESS`, `READY`, `BASKET_RECEIVED`) are strictly preserved in `Cases` across days so ongoing shifts can finish them seamlessly.
+- **Continuous Case ID**: `Case ID` numbers (e.g. `MR-0001`...) continue monotonically across all archives without resetting or collisions.
+
+`setupSystem()` creates/verifies all sheets, triggers, and headers idempotently. See `SETUP.md`.
 
 ---
 

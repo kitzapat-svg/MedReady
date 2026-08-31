@@ -36,9 +36,17 @@ function logTimelineEvent(params) {
 function getCaseTimeline(caseId) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE);
-  if (!sheet || sheet.getLastRow() <= 1) return [];
+  let data = [];
+  if (sheet && sheet.getLastRow() > 1) {
+    data = data.concat(sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues());
+  }
+  const archiveSheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE_ARCHIVE);
+  if (archiveSheet && archiveSheet.getLastRow() > 1) {
+    data = data.concat(archiveSheet.getRange(2, 1, archiveSheet.getLastRow() - 1, 8).getValues());
+  }
 
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues();
+  if (data.length === 0) return [];
+
   const caseEvents = [];
 
   for (let i = 0; i < data.length; i++) {

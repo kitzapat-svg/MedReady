@@ -247,6 +247,16 @@ function setupSystem(optionalSpreadsheetId) {
     } catch (e) {}
   }
 
+  // Setup daily automated archiving trigger (23:55 daily)
+  try {
+    const triggerRes = setupDailyAutomationTrigger();
+    if (triggerRes && triggerRes.message) {
+      results.push(triggerRes.message);
+    }
+  } catch (te) {
+    Logger.log('Trigger setup notice: ' + te.message);
+  }
+
   return {
     success: true,
     spreadsheetId: ss.getId(),
