@@ -192,8 +192,7 @@ function runAllTests() {
 
     // 15. Test Sequential Case ID Generation
     const testNextId = generateNextCaseId(SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.CASES) : null);
-    assert('Generate Next Case ID Format', /^MR-\d{4}$/.test(testNextId), 'Next Case ID: ' + testNextId);
-
+    assert('Generate Next Case ID Format', /^HM-\d{2}-\d{4,}$/.test(testNextId), 'Next Case ID: ' + testNextId);
   } catch (err) {
     failed++;
     results.push({ name: 'Exception in tests', status: 'FAIL', message: err.message });

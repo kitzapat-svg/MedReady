@@ -8,7 +8,7 @@ document wins** — fix the code, or raise the discrepancy before proceeding.
 
 ## 1. Identifiers & Privacy Rules
 
-- **Case ID** — generated, e.g. `MR-0248`. Primary human-facing identifier
+- **Case ID** — generated, e.g. `HM-26-0248` (format: `HM-YY-XXXX`). Primary human-facing identifier
   everywhere in the UI.
 - **AN** — stored, but masked in all routine views: `AN 69•••4438`. Never
   render a fully unmasked AN outside a deliberate, permission-gated view.
@@ -180,7 +180,7 @@ Each flag entry: `{caseId, flagType, actor, timestamp}`.
 ### Daily Case Clearing & Retention Policy
 - **End-of-Day Clearing**: At end of day (automated trigger at 23:55 or upon date rollover), all completed cases (`DISPENSED`) are safely moved from `Cases` and `Timeline` into `Cases_Archive` and `Timeline_Archive`, and daily KPIs are recorded in `Daily_Summaries`.
 - **Active Case Preservation**: Uncompleted cases (`SUBMITTED`, `IN_PROGRESS`, `READY`, `BASKET_RECEIVED`) are strictly preserved in `Cases` across days so ongoing shifts can finish them seamlessly.
-- **Continuous Case ID**: `Case ID` numbers (e.g. `MR-0001`...) continue monotonically across all archives without resetting or collisions.
+- **Continuous Case ID**: `Case ID` numbers (e.g. `HM-26-0001`...) continue monotonically within each year across all archives without resetting or collisions, and expand automatically if exceeding 9,999.
 
 `setupSystem()` creates/verifies all sheets, triggers, and headers idempotently. See `SETUP.md`.
 

@@ -68,77 +68,77 @@ function seedTestData() {
   ]);
 
   // 3. Sample Cases:
-  // Case 1: MR-0248 - READY (ตึกพิเศษ ห้อง 305 / เตียง 1) -> Highlight on Ward Dashboard!
+  // Case 1: HM-26-0248 - READY (ตึกพิเศษ ห้อง 305 / เตียง 1) -> Highlight on Ward Dashboard!
   const c1_sub = new Date(nowMs - 35 * m).toISOString();
   const c1_start = new Date(nowMs - 28 * m).toISOString();
   const c1_ready = new Date(nowMs - 5 * m).toISOString();
   casesSheet.appendRow([
-    'MR-0248', '6912344438', 'ห้อง 305 / เตียง 1', 'นัดหมายแล้ว', 'ตึกพิเศษ',
+    'HM-26-0248', '6912344438', 'ห้อง 305 / เตียง 1', 'นัดหมายแล้ว', 'ตึกพิเศษ',
     CONFIG.STATES.READY.key, c1_sub, c1_start, c1_ready, '', '', 'NORMAL', 'ward.special@hospital.local', c1_ready
   ]);
 
-  // Notification for MR-0248
+  // Notification for HM-26-0248
   notifSheet.appendRow([
     Utilities.getUuid(),
-    'MR-0248',
+    'HM-26-0248',
     'ตึกพิเศษ',
     '',
     'ยาพร้อมจ่ายแล้ว',
-    'MR-0248\nห้อง 305 / เตียง 1\nส่งผู้ป่วยหรือญาติมารับยาได้',
+    'HM-26-0248\nห้อง 305 / เตียง 1\nส่งผู้ป่วยหรือญาติมารับยาได้',
     c1_ready,
     '[]',
     '[]'
   ]);
 
-  // Case 2: MR-0249 - READY (ตึกพิเศษ EX04)
+  // Case 2: HM-26-0249 - READY (ตึกพิเศษ EX04)
   const c2_sub = new Date(nowMs - 40 * m).toISOString();
   const c2_start = new Date(nowMs - 32 * m).toISOString();
   const c2_ready = new Date(nowMs - 12 * m).toISOString();
   casesSheet.appendRow([
-    'MR-0249', '6899451120', 'EX04', 'ไม่มีนัด', 'ตึกพิเศษ',
+    'HM-26-0249', '6899451120', 'EX04', 'ไม่มีนัด', 'ตึกพิเศษ',
     CONFIG.STATES.READY.key, c2_sub, c2_start, c2_ready, '', '', 'NORMAL', 'ward.special@hospital.local', c2_ready
   ]);
 
-  // Case 3: MR-0250 - IN_PROGRESS (Approaching SLA)
+  // Case 3: HM-26-0250 - IN_PROGRESS (Approaching SLA)
   const c3_sub = new Date(nowMs - 33 * m).toISOString();
   const c3_start = new Date(nowMs - 20 * m).toISOString();
   casesSheet.appendRow([
-    'MR-0250', '6788329911', 'EX12', 'นัดหมายแล้ว', 'ตึกพิเศษ',
+    'HM-26-0250', '6788329911', 'EX12', 'นัดหมายแล้ว', 'ตึกพิเศษ',
     CONFIG.STATES.IN_PROGRESS.key, c3_sub, c3_start, '', '', '', 'APPROACHING', 'ward.special@hospital.local', c3_start
   ]);
 
-  // Case 4: MR-0251 - SUBMITTED (รอห้องยา)
+  // Case 4: HM-26-0251 - SUBMITTED (รอห้องยา)
   const c4_sub = new Date(nowMs - 8 * m).toISOString();
   casesSheet.appendRow([
-    'MR-0251', '6900145522', 'ห้อง 308 / เตียง 2', 'ไม่มีนัด', 'ตึกพิเศษ',
+    'HM-26-0251', '6900145522', 'ห้อง 308 / เตียง 2', 'ไม่มีนัด', 'ตึกพิเศษ',
     CONFIG.STATES.SUBMITTED.key, c4_sub, '', '', '', '', 'NORMAL', 'ward.special@hospital.local', c4_sub
   ]);
 
-  // Case 5: MR-0252 - BASKET_RECEIVED (รอจ่ายยา - patient waiting clock active)
+  // Case 5: HM-26-0252 - BASKET_RECEIVED (รอจ่ายยา - patient waiting clock active)
   const c5_sub = new Date(nowMs - 55 * m).toISOString();
   const c5_start = new Date(nowMs - 45 * m).toISOString();
   const c5_ready = new Date(nowMs - 25 * m).toISOString();
   const c5_basket = new Date(nowMs - 6 * m).toISOString();
   casesSheet.appendRow([
-    'MR-0252', '6655443322', 'EX18', 'นัดหมายแล้ว', 'ตึกพิเศษ',
+    'HM-26-0252', '6655443322', 'EX18', 'นัดหมายแล้ว', 'ตึกพิเศษ',
     CONFIG.STATES.BASKET_RECEIVED.key, c5_sub, c5_start, c5_ready, c5_basket, '', 'BREACHED', 'ward.special@hospital.local', c5_basket
   ]);
 
-  // Case 6: MR-0245 - DISPENSED (Completed)
+  // Case 6: HM-26-0245 - DISPENSED (Completed)
   const c6_sub = new Date(nowMs - 120 * m).toISOString();
   const c6_start = new Date(nowMs - 110 * m).toISOString();
   const c6_ready = new Date(nowMs - 85 * m).toISOString();
   const c6_basket = new Date(nowMs - 40 * m).toISOString();
   const c6_disp = new Date(nowMs - 28 * m).toISOString();
   casesSheet.appendRow([
-    'MR-0245', '6544332211', 'EX02', 'นัดหมายแล้ว', 'ตึกพิเศษ',
+    'HM-26-0245', '6544332211', 'EX02', 'นัดหมายแล้ว', 'ตึกพิเศษ',
     CONFIG.STATES.DISPENSED.key, c6_sub, c6_start, c6_ready, c6_basket, c6_disp, 'NORMAL', 'ward.special@hospital.local', c6_disp
   ]);
 
   // 4. Seed Issue Flags
   flagsSheet.appendRow([
     Utilities.getUuid(),
-    'MR-0250',
+    'HM-26-0250',
     'รอประสาน Ward',
     'pharmacy.ipd@hospital.local',
     new Date(nowMs - 15 * m).toISOString(),
@@ -148,17 +148,17 @@ function seedTestData() {
   ]);
 
   // 5. Seed Timeline Events
-  // Timeline MR-0248
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0248', 'WARD_SUBMITTED', 'พยาบาล ประจำตึกพิเศษ', c1_sub, '-', 'SUBMITTED', 'Ward ส่งข้อมูลผู้ป่วย']);
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0248', 'STATE_CHANGED_IN_PROGRESS', 'เภสัชกร ประจำห้องยา', c1_start, 'SUBMITTED', 'IN_PROGRESS', 'เริ่มดำเนินงาน']);
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0248', 'STATE_CHANGED_READY', 'เภสัชกร ประจำห้องยา', c1_ready, 'IN_PROGRESS', 'READY', 'ตรวจสอบแล้ว • พร้อมจ่าย']);
+  // Timeline HM-26-0248
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0248', 'WARD_SUBMITTED', 'พยาบาล ประจำตึกพิเศษ', c1_sub, '-', 'SUBMITTED', 'Ward ส่งข้อมูลผู้ป่วย']);
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0248', 'STATE_CHANGED_IN_PROGRESS', 'เภสัชกร ประจำห้องยา', c1_start, 'SUBMITTED', 'IN_PROGRESS', 'เริ่มดำเนินงาน']);
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0248', 'STATE_CHANGED_READY', 'เภสัชกร ประจำห้องยา', c1_ready, 'IN_PROGRESS', 'READY', 'ตรวจสอบแล้ว • พร้อมจ่าย']);
 
-  // Timeline MR-0245
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0245', 'WARD_SUBMITTED', 'พยาบาล ประจำตึกพิเศษ', c6_sub, '-', 'SUBMITTED', 'Ward ส่งข้อมูล']);
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0245', 'STATE_CHANGED_IN_PROGRESS', 'เภสัชกร', c6_start, 'SUBMITTED', 'IN_PROGRESS', 'เริ่มดำเนินงาน']);
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0245', 'STATE_CHANGED_READY', 'เภสัชกร', c6_ready, 'IN_PROGRESS', 'READY', 'พร้อมจ่าย']);
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0245', 'STATE_CHANGED_BASKET_RECEIVED', 'เภสัชกร', c6_basket, 'READY', 'BASKET_RECEIVED', 'รับตะกร้า']);
-  timelineSheet.appendRow([Utilities.getUuid(), 'MR-0245', 'STATE_CHANGED_DISPENSED', 'เภสัชกร', c6_disp, 'BASKET_RECEIVED', 'DISPENSED', 'จ่ายยาแล้ว']);
+  // Timeline HM-26-0245
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0245', 'WARD_SUBMITTED', 'พยาบาล ประจำตึกพิเศษ', c6_sub, '-', 'SUBMITTED', 'Ward ส่งข้อมูล']);
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0245', 'STATE_CHANGED_IN_PROGRESS', 'เภสัชกร', c6_start, 'SUBMITTED', 'IN_PROGRESS', 'เริ่มดำเนินงาน']);
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0245', 'STATE_CHANGED_READY', 'เภสัชกร', c6_ready, 'IN_PROGRESS', 'READY', 'พร้อมจ่าย']);
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0245', 'STATE_CHANGED_BASKET_RECEIVED', 'เภสัชกร', c6_basket, 'READY', 'BASKET_RECEIVED', 'รับตะกร้า']);
+  timelineSheet.appendRow([Utilities.getUuid(), 'HM-26-0245', 'STATE_CHANGED_DISPENSED', 'เภสัชกร', c6_disp, 'BASKET_RECEIVED', 'DISPENSED', 'จ่ายยาแล้ว']);
 
   Logger.log('✅ Seed completed! Database URL: ' + ss.getUrl());
   return {

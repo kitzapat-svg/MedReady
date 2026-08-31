@@ -203,20 +203,43 @@ function withLock(callback, timeoutSeconds) {
 }
 
 /**
- * Generate Next Case ID, e.g. MR-0001, MR-0248
- * Checks both Cases and Cases_Archive to guarantee sequential IDs across daily archiving.
+ * Generate Next Case ID, e.g. HM-26-0001, HM-26-0248
+ * Format: HM-YY-XXXX (2-digit year + 4+ digit running number).
+ * Resets each year, expands to 5+ digits if exceeding 9,999 without truncation,
+ * and caches latest number in Script Properties for high performance.
  */
 function generateNextCaseId(casesSheet) {
   let maxNumber = 0;
+  let currentYearStr = '26';
+  
+  try {
+    const tz = (typeof CONFIG !== 'undefined' && CONFIG.TIMEZONE) ? CONFIG.TIMEZONE : 'Asia/Bangkok';
+    currentYearStr = Utilities.formatDate(new Date(), tz, 'yy');
+  } catch (e) {
+    currentYearStr = String(new Date().getFullYear()).slice(-2);
+  }
 
   function scanMaxId(sheet) {
     if (!sheet || sheet.getLastRow() <= 1) return;
     const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
     for (let i = 0; i < vals.length; i++) {
       const val = String(vals[i][0] || '').trim();
-      const match = val.match(/^MR-(\d+)$/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
+      
+      // Match HM-YY-XXXX or MR-YY-XXXX
+      const yearMatch = val.match(/^(?:HM|MR)-(\d{2})-(\d+)$/i);
+      if (yearMatch) {
+        const caseYear = yearMatch[1];
+        const num = parseInt(yearMatch[2], 10);
+        if (caseYear === currentYearStr && !isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
+        continue;
+      }
+      
+      // Match legacy format without year: HM-XXXX or MR-XXXX
+      const legacyMatch = val.match(/^(?:HM|MR)-(\d+)$/i);
+      if (legacyMatch) {
+        const num = parseInt(legacyMatch[1], 10);
         if (!isNaN(num) && num > maxNumber) {
           maxNumber = num;
         }
@@ -242,9 +265,33 @@ function generateNextCaseId(casesSheet) {
     Logger.log('Warning scanning Cases_Archive for next ID: ' + e.message);
   }
 
+  // 3. Check cached counter from PropertiesService for speed
+  try {
+    if (typeof PropertiesService !== 'undefined' && PropertiesService.getScriptProperties) {
+      const props = PropertiesService.getScriptProperties();
+      const cachedNum = parseInt(props.getProperty('LAST_CASE_NUM_' + currentYearStr) || '0', 10);
+      if (!isNaN(cachedNum) && cachedNum > maxNumber) {
+        maxNumber = cachedNum;
+      }
+    }
+  } catch (e) {
+    // Ignore property read errors
+  }
+
   const nextNum = maxNumber + 1;
-  const padded = ('0000' + nextNum).slice(-4);
-  return 'MR-' + padded;
+  const padded = String(nextNum).padStart(4, '0');
+  const nextCaseId = 'HM-' + currentYearStr + '-' + padded;
+
+  // 4. Update cached counter
+  try {
+    if (typeof PropertiesService !== 'undefined' && PropertiesService.getScriptProperties) {
+      PropertiesService.getScriptProperties().setProperty('LAST_CASE_NUM_' + currentYearStr, String(nextNum));
+    }
+  } catch (e) {
+    // Ignore property write errors
+  }
+
+  return nextCaseId;
 }
 
 /**
