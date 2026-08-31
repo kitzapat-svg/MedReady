@@ -435,21 +435,64 @@
   </div>
 
   <!-- Date Range Filter Bar -->
-  <div class="bg-white border border-[#e4e2e4] rounded-xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="text-xs font-semibold text-[#414753] mr-1 flex items-center gap-1">
-        <span class="material-symbols-outlined text-sm text-[#0071e3]">calendar_today</span> ช่วงข้อมูล:
-      </span>
-      <button type="button" onclick="App.setAnalyticsDatePreset('TODAY')" id="btn-preset-today" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0071e3] text-white transition-colors">วันนี้</button>
-      <button type="button" onclick="App.setAnalyticsDatePreset('YESTERDAY')" id="btn-preset-yesterday" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">เมื่อวาน</button>
-      <button type="button" onclick="App.setAnalyticsDatePreset('WEEK')" id="btn-preset-week" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">ย้อนหลัง 7 วัน</button>
-      <button type="button" onclick="App.setAnalyticsDatePreset('ALL')" id="btn-preset-all" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">ทั้งหมด</button>
+  <div class="bg-white border border-[#e4e2e4] rounded-xl p-4 shadow-sm space-y-3">
+    <!-- Top Row: Quick Presets & Period Dropdown -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <!-- Quick Presets -->
+      <div class="flex flex-wrap items-center gap-1.5" id="analytics-preset-buttons">
+        <span class="text-xs font-semibold text-[#414753] mr-1 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm text-[#0071e3]">calendar_today</span> ช่วงข้อมูล:
+        </span>
+        <button type="button" onclick="App.setAnalyticsDatePreset('TODAY')" id="btn-preset-today" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#0071e3] text-white transition-colors">วันนี้</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('YESTERDAY')" id="btn-preset-yesterday" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">เมื่อวาน</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('WEEK')" id="btn-preset-week" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">7 วันล่าสุด</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('THIS_MONTH')" id="btn-preset-this-month" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">เดือนนี้</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('LAST_MONTH')" id="btn-preset-last-month" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">เดือนที่แล้ว</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('THIS_QUARTER')" id="btn-preset-this-quarter" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">ไตรมาสนี้</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('THIS_FISCAL_YEAR')" id="btn-preset-this-fiscal-year" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">ปีงบประมาณนี้</button>
+        <button type="button" onclick="App.setAnalyticsDatePreset('ALL')" id="btn-preset-all" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">ทั้งหมด</button>
+      </div>
+
+      <!-- Quick Period Selector (Quarter / Fiscal Year / Specific Year) -->
+      <div class="flex items-center gap-2">
+        <select id="analytics-period-select" onchange="App.onAnalyticsPeriodSelect(this.value)" class="bg-[#f0edef] border border-[#e4e2e4] rounded-lg px-3 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:ring-1 focus:ring-[#0071e3] font-medium cursor-pointer">
+          <option value="">-- เลือกตามช่วงเวลา (ไตรมาส / ปีงบ) --</option>
+          <optgroup label="ไตรมาส (ปีงบประมาณ)">
+            <option value="FY_Q1">ไตรมาส 1 ปีงบ (1 ต.ค. - 31 ธ.ค.)</option>
+            <option value="FY_Q2">ไตรมาส 2 ปีงบ (1 ม.ค. - 31 มี.ค.)</option>
+            <option value="FY_Q3">ไตรมาส 3 ปีงบ (1 เม.ย. - 30 มิ.ย.)</option>
+            <option value="FY_Q4">ไตรมาส 4 ปีงบ (1 ก.ค. - 30 ก.ย.)</option>
+          </optgroup>
+          <optgroup label="ปีงบประมาณ (Fiscal Year)">
+            <option value="FY_CURRENT">ปีงบประมาณปัจจุบัน (1 ต.ค. - 30 ก.ย.)</option>
+            <option value="FY_PREV">ปีงบประมาณที่แล้ว</option>
+          </optgroup>
+          <optgroup label="ปีปฏิทิน (Calendar Year)">
+            <option value="CAL_CURRENT">ปีปฏิทินปัจจุบัน (1 ม.ค. - 31 ธ.ค.)</option>
+            <option value="CAL_PREV">ปีปฏิทินที่แล้ว</option>
+          </optgroup>
+        </select>
+      </div>
     </div>
 
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-[#86868b]">เลือกวันที่:</span>
-      <input type="date" id="analytics-date-input" onchange="App.onAnalyticsDateChanged(this.value)" class="px-3 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
-      <span id="analytics-date-badge" class="text-xs font-medium text-[#0059b5] bg-[#0071e3]/10 px-2.5 py-1 rounded-md">วันนี้</span>
+    <!-- Bottom Row: Custom Date Range (ระหว่างวันที่ ... ถึงวันที่ ...) & Active Badge -->
+    <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#f0edef]">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs text-[#5d5e60] font-medium flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm text-[#0071e3]">date_range</span> ระบุช่วงวันที่:
+        </span>
+        <input type="date" id="analytics-start-date" onchange="App.onAnalyticsCustomRangeChanged()" class="px-2.5 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+        <span class="text-xs text-[#86868b]">ถึง</span>
+        <input type="date" id="analytics-end-date" onchange="App.onAnalyticsCustomRangeChanged()" class="px-2.5 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+        <button type="button" onclick="App.applyAnalyticsCustomRange()" class="px-3 py-1.5 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium transition-colors shadow-xs">
+          ดูข้อมูล
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-[#86868b]">ช่วงที่แสดง:</span>
+        <span id="analytics-date-badge" class="text-xs font-semibold text-[#0059b5] bg-[#0071e3]/10 px-3 py-1 rounded-md">วันนี้</span>
+      </div>
     </div>
   </div>
 
