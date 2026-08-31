@@ -28,6 +28,8 @@ temp/
 .DS_Store
 Thumbs.db
 desktop.ini
+.thumb/
+**/.thumb/
 
 # IDE & Editor
 .idea/

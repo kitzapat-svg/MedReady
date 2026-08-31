@@ -446,11 +446,23 @@ function apiRunDailyArchiving(targetDateStr) {
         }
       }
 
+      // 4. Cleanup old notifications to prevent database bloat
+      let cleanedNotifsCount = 0;
+      try {
+        const notifCleanRes = cleanupOldNotifications();
+        if (notifCleanRes && notifCleanRes.success) {
+          cleanedNotifsCount = notifCleanRes.count || 0;
+        }
+      } catch (ne) {
+        Logger.log('Notification cleanup warning: ' + ne.message);
+      }
+
       return successResponse({
         date: dateToProcess,
         metrics: metrics,
-        archivedOldCasesCount: archivedCount
-      }, `บันทึกสรุปข้อมูลประจำวัน ${dateToProcess} และจัดเก็บคลังประวัติเรียบร้อยแล้ว (${archivedCount} เคสเก่าถูกย้ายไป Archive)`);
+        archivedOldCasesCount: archivedCount,
+        cleanedNotificationsCount: cleanedNotifsCount
+      }, `บันทึกสรุปข้อมูลประจำวัน ${dateToProcess} และจัดเก็บคลังประวัติเรียบร้อยแล้ว (${archivedCount} เคสเก่าถูกย้ายไป Archive, ล้างแจ้งเตือนเก่า ${cleanedNotifsCount} รายการ)`);
     } catch (err) {
       return errorResponse(err.message, 'RUN_ARCHIVE_ERROR');
     }

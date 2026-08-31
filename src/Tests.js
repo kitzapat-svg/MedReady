@@ -88,7 +88,16 @@ function runAllTests() {
     assert('Get Current User Returns Status', currentUser && typeof currentUser.status === 'string', 'Current user status: ' + (currentUser ? currentUser.status : 'null'));
     assert('Bootstrap API Structure', typeof apiGetBootstrap === 'function', 'apiGetBootstrap is defined');
     
-    // 9. Test Notification APIs
+    // 9. Test Notification APIs (Per-User Read State & Cleanup)
+    // 9.1 Helper functions test
+    const testList1 = parseUserList('["user1@hospital.local", "USER2@hospital.local"]');
+    assert('Parse User List JSON', testList1.length === 2 && testList1.includes('user1@hospital.local') && testList1.includes('user2@hospital.local'), 'Parsed JSON users');
+    const testList2 = parseUserList('nurse1@hospital.local, nurse2@hospital.local');
+    assert('Parse User List CSV', testList2.length === 2 && testList2.includes('nurse1@hospital.local'), 'Parsed CSV users');
+    const serializedUsers = serializeUserList(['nurse1@hospital.local', 'nurse1@hospital.local', 'nurse2@hospital.local']);
+    assert('Serialize User List De-dupe', serializedUsers === '["nurse1@hospital.local","nurse2@hospital.local"]', 'Serialized unique JSON: ' + serializedUsers);
+
+    // 9.2 Create and List Notifications
     createReadyNotification({
       caseId: 'TEST-CASE-999',
       wardScope: 'ตึกพิเศษ',
@@ -99,12 +108,33 @@ function runAllTests() {
     assert('API List Notifications', listRes && listRes.success === true, 'apiListNotifications succeeds');
     
     if (listRes.success && listRes.data.length > 0) {
+      const targetNotif = listRes.data.find(n => n.caseId === 'TEST-CASE-999') || listRes.data[0];
+      const notifId = targetNotif.notificationId;
+
+      // 9.3 Mark Single Notification Read
+      const markSingleRes = apiMarkNotificationsAsRead([notifId]);
+      assert('API Mark Notifications As Read (Single)', markSingleRes && markSingleRes.success === true, 'apiMarkNotificationsAsRead succeeds');
+      
+      const listAfterMark = apiListNotifications();
+      const updatedNotif = (listAfterMark.data || []).find(n => n.notificationId === notifId);
+      assert('Notification Marked as Read for Current User', updatedNotif && updatedNotif.read === true, 'Read state is true');
+
+      // 9.4 Mark All Read
       const markAllRes = apiMarkAllNotificationsRead();
       assert('API Mark All Notifications Read', markAllRes && markAllRes.success === true, 'apiMarkAllNotificationsRead succeeds');
       
+      // 9.5 Dismiss Single Notification
+      const dismissRes = apiDismissNotification(notifId);
+      assert('API Dismiss Notification', dismissRes && dismissRes.success === true, 'apiDismissNotification succeeds');
+
+      // 9.6 Delete/Dismiss All Notifications
       const deleteAllRes = apiDeleteAllNotifications();
       assert('API Delete All Notifications', deleteAllRes && deleteAllRes.success === true, 'apiDeleteAllNotifications succeeds');
     }
+
+    // 9.7 Test Daily Notification Cleanup Function
+    const cleanupRes = cleanupOldNotifications(1);
+    assert('Cleanup Old Notifications Execution', cleanupRes && cleanupRes.success === true && typeof cleanupRes.count === 'number', 'Cleaned ' + (cleanupRes ? cleanupRes.count : 0) + ' items');
 
     // 10. Test Daily Analytics & Archive Sheet Configurations
     assert('Daily Summaries Sheet Config', CONFIG.SHEETS.DAILY_SUMMARIES === 'Daily_Summaries', 'Sheet is Daily_Summaries');

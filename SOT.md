@@ -141,7 +141,9 @@ with a text label.
   ห้อง 305 / เตียง 1
   ส่งผู้ป่วยหรือญาติมารับยาได้
   ```
-- Read/unread state tracked per user.
+- Read/unread state tracked per user (`Read By` JSON array).
+- Dismissal/delete state tracked per user (`Dismissed By` JSON array).
+- Database retention & cleanup: Automated daily purge of old notifications via `triggerDailyArchivingAndSummary()` at 23:55 to prevent sheet bloat (`NOTIFICATION_RETENTION_DAYS`, default: 1 day).
 - Delivery mechanism: polling (no websockets in Apps Script) — see
   `ROADMAP.md` Phase 8 for interval/quota considerations.
 
@@ -169,6 +171,7 @@ Each flag entry: `{caseId, flagType, actor, timestamp}`.
 | **Issue Flags** | Case ID, Flag Type, Actor, Timestamp |
 | **Users / Allowlist** | Email, Role, Ward Scope, Active |
 | **Settings** | SLA threshold(s) in minutes, other admin-configurable values |
+| **Notifications** | Notification ID, Case ID, Recipient Ward, Recipient Email, Title, Message, Timestamp, `Read By`, `Dismissed By` |
 
 `setupSystem()` creates/verifies all sheets and headers idempotently. See
 `SETUP.md`.

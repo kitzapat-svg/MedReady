@@ -1091,18 +1091,45 @@ const App = {
     drawer.classList.remove('hidden');
 
     const list = document.getElementById('notifications-list');
-    if (this.notifications.length === 0) {
-      list.innerHTML = '<div class="text-center py-8 text-xs text-[#86868b]">ไม่มีการแจ้งเตือน</div>';
+    if (!this.notifications || this.notifications.length === 0) {
+      list.innerHTML = `
+        <div class="text-center py-12 text-[#86868b] space-y-2">
+          <span class="material-symbols-outlined text-4xl text-[#c7c6ca]">notifications_off</span>
+          <div class="text-xs">ไม่มีการแจ้งเตือนในขณะนี้</div>
+        </div>
+      `;
       return;
     }
 
     let html = '';
     this.notifications.forEach(n => {
+      const isUnread = !n.read;
+      const cardBg = isUnread 
+        ? 'bg-[#0071e3]/6 border-l-4 border-[#0071e3] shadow-xs' 
+        : 'bg-[#fcf8fb] border-l-4 border-transparent hover:bg-[#f0edef]/60';
+      const titleColor = isUnread ? 'text-[#0071e3] font-semibold' : 'text-[#1b1b1d] font-medium opacity-80';
+
       html += `
-        <div class="py-3 space-y-1 ${n.read ? 'opacity-60' : 'bg-[#0071e3]/5 p-2 rounded-lg'}">
-          <div class="font-semibold text-xs text-[#1b1b1d]">${n.title}</div>
-          <div class="text-xs text-[#414753]">${n.message}</div>
-          <div class="text-[10px] text-[#86868b]">${new Date(n.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div class="group relative p-3.5 my-1.5 rounded-r-xl transition-all cursor-pointer ${cardBg}" onclick="App.clickNotification('${n.notificationId}', '${n.caseId || ''}')">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2">
+              ${isUnread ? '<span class="w-2 h-2 rounded-full bg-[#0071e3] inline-block animate-pulse"></span>' : ''}
+              <div class="text-xs ${titleColor}">${n.title}</div>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] text-[#86868b]">${n.timeThai || (n.timestamp ? new Date(n.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '')}</span>
+              <button onclick="event.stopPropagation(); App.deleteNotification('${n.notificationId}')" class="opacity-0 group-hover:opacity-100 p-1 text-[#86868b] hover:text-[#ba1a1a] hover:bg-white rounded transition-all" title="ลบการแจ้งเตือนนี้">
+                <span class="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+          </div>
+          <div class="text-xs text-[#414753] mt-1 whitespace-pre-line leading-relaxed ${isUnread ? '' : 'opacity-75'}">${n.message}</div>
+          ${n.caseId ? `
+            <div class="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#0071e3] hover:underline">
+              <span>ดูรายละเอียดเคส</span>
+              <span class="material-symbols-outlined text-xs">arrow_forward</span>
+            </div>
+          ` : ''}
         </div>
       `;
     });
@@ -1114,7 +1141,38 @@ const App = {
     if (drawer) drawer.classList.add('hidden');
   },
 
+  clickNotification: function(notificationId, caseId) {
+    // Mark as read locally and on server
+    const notif = (this.notifications || []).find(n => n.notificationId === notificationId);
+    if (notif && !notif.read) {
+      notif.read = true;
+      const unreadCount = this.notifications.filter(n => !n.read).length;
+      const badge = document.getElementById('notif-unread-badge');
+      if (badge) {
+        badge.textContent = unreadCount;
+        if (unreadCount > 0) badge.classList.remove('hidden');
+        else badge.classList.add('hidden');
+      }
+      google.script.run.apiMarkNotificationsAsRead([notificationId]);
+      this.openNotifications();
+    }
+
+    // Open case detail modal if caseId is present
+    if (caseId) {
+      this.closeNotifications();
+      this.openCaseDetail(caseId);
+    }
+  },
+
   markAllNotificationsRead: function() {
+    // Optimistic UI update
+    if (this.notifications) {
+      this.notifications.forEach(n => n.read = true);
+      const badge = document.getElementById('notif-unread-badge');
+      if (badge) badge.classList.add('hidden');
+      this.openNotifications();
+    }
+    
     App.showToast('กำลังปรับสถานะการอ่าน...', 'info');
     google.script.run
       .withSuccessHandler(function() {
@@ -1127,9 +1185,39 @@ const App = {
       .apiMarkAllNotificationsRead();
   },
 
+  deleteNotification: function(notificationId) {
+    // Optimistic UI update
+    if (this.notifications) {
+      this.notifications = this.notifications.filter(n => n.notificationId !== notificationId);
+      const unreadCount = this.notifications.filter(n => !n.read).length;
+      const badge = document.getElementById('notif-unread-badge');
+      if (badge) {
+        badge.textContent = unreadCount;
+        if (unreadCount > 0) badge.classList.remove('hidden');
+        else badge.classList.add('hidden');
+      }
+      this.openNotifications();
+    }
+
+    google.script.run
+      .withSuccessHandler(function() {
+        App.loadNotifications();
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('ไม่สามารถลบการแจ้งเตือน: ' + err.message, 'error');
+      })
+      .apiDismissNotification(notificationId);
+  },
+
   deleteAllNotifications: function() {
-    if (!confirm('คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?')) return;
+    if (!confirm('คุณต้องการลบการแจ้งเตือนทั้งหมดของคุณใช่หรือไม่?')) return;
     
+    // Optimistic UI update
+    this.notifications = [];
+    const badge = document.getElementById('notif-unread-badge');
+    if (badge) badge.classList.add('hidden');
+    this.openNotifications();
+
     App.showToast('กำลังลบการแจ้งเตือน...', 'info');
     google.script.run
       .withSuccessHandler(function(res) {

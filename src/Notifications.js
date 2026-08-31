@@ -1,7 +1,36 @@
 /**
  * MedReady - Notification Engine
  * Creates and delivers in-app notifications when cases transition to READY.
+ * Tracks per-user read/dismiss state and provides daily database cleanup.
  */
+
+/**
+ * Helper to parse a list of user emails from a cell (supports JSON array or comma-separated string)
+ */
+function parseUserList(val) {
+  if (!val) return [];
+  const str = String(val).trim();
+  if (!str) return [];
+  if (str.toUpperCase() === 'FALSE' || str.toUpperCase() === 'TRUE') return [];
+  if (str.startsWith('[') && str.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return parsed.map(e => String(e).toLowerCase().trim()).filter(Boolean);
+      }
+    } catch (e) {}
+  }
+  return str.split(',').map(e => e.toLowerCase().trim()).filter(Boolean);
+}
+
+/**
+ * Helper to serialize list of user emails as JSON
+ */
+function serializeUserList(list) {
+  if (!Array.isArray(list)) return '[]';
+  const set = new Set(list.map(e => String(e).toLowerCase().trim()).filter(Boolean));
+  return JSON.stringify(Array.from(set));
+}
 
 /**
  * Creates a READY notification for the submitting ward
@@ -25,12 +54,12 @@ function createReadyNotification(params) {
       notifId,
       caseId,
       wardScope,
-      '',              // Recipient Email (empty means all users in ward)
+      params.recipientEmail || '',  // Recipient Email (empty means all users in ward)
       title,
       message,
       now,
-      'FALSE',         // Read
-      ''               // Read At
+      '[]',            // Read By (JSON array of user emails)
+      '[]'             // Dismissed By (JSON array of user emails)
     ]);
   } catch (e) {
     Logger.log('Error creating notification: ' + e.message);
@@ -38,11 +67,12 @@ function createReadyNotification(params) {
 }
 
 /**
- * Lists notifications for the current user (filtered by ward scope)
+ * Lists notifications for the current user (filtered by ward scope and per-user dismissal)
  */
 function apiListNotifications() {
   try {
     const user = requireAuthorization();
+    const userEmail = (user.email || '').toLowerCase().trim();
     const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
     
@@ -60,10 +90,22 @@ function apiListNotifications() {
 
       const caseId = String(r[1] || '');
       const wardScope = String(r[2] || '');
+      const recipientEmail = String(r[3] || '').toLowerCase().trim();
       const title = String(r[4] || '');
       const message = String(r[5] || '');
       const timestamp = r[6] ? toIsoString(r[6]) : '';
-      const isRead = String(r[7]).toUpperCase() === 'TRUE';
+      const readUsers = parseUserList(r[7]);
+      const dismissedUsers = parseUserList(r[8]);
+
+      // If user has dismissed this notification, do not show it
+      if (userEmail && dismissedUsers.includes(userEmail)) {
+        continue;
+      }
+
+      // Recipient Email scoping (if set to a specific user)
+      if (recipientEmail && userEmail && recipientEmail !== userEmail) {
+        continue;
+      }
 
       // Role and ward scoping
       if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
@@ -71,6 +113,8 @@ function apiListNotifications() {
           continue;
         }
       }
+
+      const isRead = userEmail ? readUsers.includes(userEmail) : false;
 
       list.push({
         notificationId: notifId,
@@ -95,12 +139,13 @@ function apiListNotifications() {
 }
 
 /**
- * Marks notifications as read
+ * Marks specific notifications as read for the current user
  */
 function apiMarkNotificationsAsRead(notificationIds) {
   try {
     const user = requireAuthorization();
-    if (!notificationIds || !Array.isArray(notificationIds) || notificationIds.length === 0) {
+    const userEmail = (user.email || '').toLowerCase().trim();
+    if (!notificationIds || !Array.isArray(notificationIds) || notificationIds.length === 0 || !userEmail) {
       return successResponse(null);
     }
 
@@ -109,16 +154,28 @@ function apiMarkNotificationsAsRead(notificationIds) {
       const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
       if (!sheet || sheet.getLastRow() <= 1) return successResponse(null);
 
-      const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
-      const idSet = new Set(notificationIds);
-      const now = new Date().toISOString();
+      const lastRow = sheet.getLastRow();
+      const range = sheet.getRange(2, 1, lastRow - 1, 9);
+      const data = range.getValues();
+      const idSet = new Set(notificationIds.map(id => String(id).trim()));
+      let updated = false;
 
       for (let i = 0; i < data.length; i++) {
         const id = String(data[i][0] || '').trim();
         if (idSet.has(id)) {
-          sheet.getRange(i + 2, 8).setValue('TRUE');
-          sheet.getRange(i + 2, 9).setValue(now);
+          const readUsers = parseUserList(data[i][7]);
+          if (!readUsers.includes(userEmail)) {
+            readUsers.push(userEmail);
+            data[i][7] = serializeUserList(readUsers);
+            updated = true;
+          }
         }
+      }
+
+      if (updated) {
+        const writeRange = sheet.getRange(2, 8, lastRow - 1, 1);
+        const writeValues = data.map(r => [r[7]]);
+        writeRange.setValues(writeValues);
       }
 
       return successResponse(null, 'อัปเดตสถานะการอ่านสำเร็จ');
@@ -134,6 +191,9 @@ function apiMarkNotificationsAsRead(notificationIds) {
 function apiMarkAllNotificationsRead() {
   try {
     const user = requireAuthorization();
+    const userEmail = (user.email || '').toLowerCase().trim();
+    if (!userEmail) return successResponse(null);
+
     return withLock(function() {
       const ss = getSpreadsheet();
       const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
@@ -144,7 +204,6 @@ function apiMarkAllNotificationsRead() {
       const lastRow = sheet.getLastRow();
       const range = sheet.getRange(2, 1, lastRow - 1, 9);
       const data = range.getValues();
-      const now = new Date().toISOString();
       let updated = false;
 
       for (let i = 0; i < data.length; i++) {
@@ -153,9 +212,11 @@ function apiMarkAllNotificationsRead() {
         if (!notifId) continue;
 
         const wardScope = String(r[2] || '');
-        const isRead = String(r[7]).toUpperCase() === 'TRUE';
+        const recipientEmail = String(r[3] || '').toLowerCase().trim();
+        const dismissedUsers = parseUserList(r[8]);
 
-        if (isRead) continue;
+        if (dismissedUsers.includes(userEmail)) continue;
+        if (recipientEmail && recipientEmail !== userEmail) continue;
 
         // Role and ward scoping
         if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
@@ -164,16 +225,17 @@ function apiMarkAllNotificationsRead() {
           }
         }
 
-        // Update in-memory data
-        data[i][7] = 'TRUE';
-        data[i][8] = now;
-        updated = true;
+        const readUsers = parseUserList(r[7]);
+        if (!readUsers.includes(userEmail)) {
+          readUsers.push(userEmail);
+          data[i][7] = serializeUserList(readUsers);
+          updated = true;
+        }
       }
 
       if (updated) {
-        // Write the columns 8 and 9 (Read, Read At) back to the sheet
-        const writeRange = sheet.getRange(2, 8, lastRow - 1, 2);
-        const writeValues = data.map(r => [r[7], r[8]]);
+        const writeRange = sheet.getRange(2, 8, lastRow - 1, 1);
+        const writeValues = data.map(r => [r[7]]);
         writeRange.setValues(writeValues);
       }
 
@@ -185,11 +247,15 @@ function apiMarkAllNotificationsRead() {
 }
 
 /**
- * Deletes all notifications for the current user (based on ward scope)
+ * Dismisses/Hides all visible notifications for the current user
+ * Does not delete rows from sheet so other ward staff are not affected.
  */
 function apiDeleteAllNotifications() {
   try {
     const user = requireAuthorization();
+    const userEmail = (user.email || '').toLowerCase().trim();
+    if (!userEmail) return successResponse(null);
+
     return withLock(function() {
       const ss = getSpreadsheet();
       const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
@@ -200,48 +266,162 @@ function apiDeleteAllNotifications() {
       const lastRow = sheet.getLastRow();
       const range = sheet.getRange(2, 1, lastRow - 1, 9);
       const data = range.getValues();
-      const remainingRows = [];
-      let deletedCount = 0;
+      let updated = false;
 
       for (let i = 0; i < data.length; i++) {
         const r = data[i];
         const notifId = String(r[0] || '').trim();
-        if (!notifId) {
-          remainingRows.push(r);
-          continue;
-        }
+        if (!notifId) continue;
 
         const wardScope = String(r[2] || '');
+        const recipientEmail = String(r[3] || '').toLowerCase().trim();
 
-        // Check if this row should be deleted
-        let shouldDelete = true;
+        if (recipientEmail && recipientEmail !== userEmail) continue;
+
+        // Role and ward scoping
         if (user.role === CONFIG.ROLES.WARD && user.wardScope !== 'ALL') {
           if (wardScope !== user.wardScope) {
-            shouldDelete = false; // keep it, it's not the user's ward scope
+            continue;
           }
         }
 
-        if (shouldDelete) {
-          deletedCount++;
-        } else {
-          remainingRows.push(r);
+        const dismissedUsers = parseUserList(r[8]);
+        if (!dismissedUsers.includes(userEmail)) {
+          dismissedUsers.push(userEmail);
+          data[i][8] = serializeUserList(dismissedUsers);
+          updated = true;
         }
       }
 
-      if (deletedCount > 0) {
-        // Clear the existing data rows
-        sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
-        
-        // Write remaining rows back
-        if (remainingRows.length > 0) {
-          sheet.getRange(2, 1, remainingRows.length, 9).setValues(remainingRows);
-        }
+      if (updated) {
+        const writeRange = sheet.getRange(2, 9, lastRow - 1, 1);
+        const writeValues = data.map(r => [r[8]]);
+        writeRange.setValues(writeValues);
       }
 
-      return successResponse(null, 'ลบการแจ้งเตือนทั้งหมดสำเร็จ');
+      return successResponse(null, 'ลบการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว');
     });
   } catch (err) {
     return errorResponse(err.message, 'DELETE_ALL_NOTIFICATIONS_ERROR');
   }
 }
 
+/**
+ * Dismisses/Hides a single notification for the current user
+ */
+function apiDismissNotification(notificationId) {
+  try {
+    const user = requireAuthorization();
+    const userEmail = (user.email || '').toLowerCase().trim();
+    if (!notificationId || !userEmail) return successResponse(null);
+
+    return withLock(function() {
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
+      if (!sheet || sheet.getLastRow() <= 1) return successResponse(null);
+
+      const lastRow = sheet.getLastRow();
+      const range = sheet.getRange(2, 1, lastRow - 1, 9);
+      const data = range.getValues();
+      let updated = false;
+
+      for (let i = 0; i < data.length; i++) {
+        const id = String(data[i][0] || '').trim();
+        if (id === String(notificationId).trim()) {
+          const dismissedUsers = parseUserList(data[i][8]);
+          if (!dismissedUsers.includes(userEmail)) {
+            dismissedUsers.push(userEmail);
+            data[i][8] = serializeUserList(dismissedUsers);
+            updated = true;
+          }
+          break;
+        }
+      }
+
+      if (updated) {
+        const writeRange = sheet.getRange(2, 9, lastRow - 1, 1);
+        const writeValues = data.map(r => [r[8]]);
+        writeRange.setValues(writeValues);
+      }
+
+      return successResponse(null, 'ลบการแจ้งเตือนเรียบร้อยแล้ว');
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'DISMISS_NOTIFICATION_ERROR');
+  }
+}
+
+/**
+ * Cleans up old notifications to prevent database bloat.
+ * Purges rows older than the retention period (in days) from the Notifications sheet.
+ */
+function cleanupOldNotifications(retentionDays) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
+    if (!sheet || sheet.getLastRow() <= 1) return { success: true, count: 0 };
+
+    let days = retentionDays;
+    if (days === undefined || days === null) {
+      try {
+        const settings = typeof apiGetSettingsPublic === 'function' ? apiGetSettingsPublic() : {};
+        days = parseInt(settings.NOTIFICATION_RETENTION_DAYS || CONFIG.DEFAULT_SETTINGS.NOTIFICATION_RETENTION_DAYS || '1', 10);
+      } catch (e) {
+        days = 1;
+      }
+      if (isNaN(days) || days < 0) days = 1;
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffTime = cutoff.getTime();
+
+    const lastRow = sheet.getLastRow();
+    const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
+    const rowsToKeep = [];
+    let deletedCount = 0;
+
+    for (let i = 0; i < data.length; i++) {
+      const r = data[i];
+      const notifId = String(r[0] || '').trim();
+      if (!notifId) continue;
+
+      const timestampStr = r[6] ? toIsoString(r[6]) : '';
+      const notifTime = timestampStr ? new Date(timestampStr).getTime() : 0;
+
+      // Keep notification if created within retention cutoff
+      if (notifTime >= cutoffTime) {
+        rowsToKeep.push(r);
+      } else {
+        deletedCount++;
+      }
+    }
+
+    if (deletedCount > 0) {
+      sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
+      if (rowsToKeep.length > 0) {
+        sheet.getRange(2, 1, rowsToKeep.length, 9).setValues(rowsToKeep);
+      }
+    }
+
+    Logger.log('Cleaned up ' + deletedCount + ' old notifications (retention: ' + days + ' days)');
+    return { success: true, count: deletedCount };
+  } catch (e) {
+    Logger.log('Error cleaning up notifications: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Public API to trigger notification cleanup on demand
+ */
+function apiCleanupNotifications(retentionDays) {
+  try {
+    requireAuthorization([CONFIG.ROLES.PHARMACY, CONFIG.ROLES.SUPER_ADMIN]);
+    const res = cleanupOldNotifications(retentionDays);
+    if (!res.success) throw new Error(res.error);
+    return successResponse(res, `ล้างการแจ้งเตือนเก่าเรียบร้อยแล้ว (${res.count} รายการถูกลบ)`);
+  } catch (err) {
+    return errorResponse(err.message, 'CLEANUP_NOTIFICATIONS_ERROR');
+  }
+}

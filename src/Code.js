@@ -192,8 +192,8 @@ function setupSystem(optionalSpreadsheetId) {
     'Title',
     'Message',
     'Timestamp',
-    'Read',
-    'Read At'
+    'Read By',
+    'Dismissed By'
   ];
   ensureSheetWithHeaders(ss, CONFIG.SHEETS.NOTIFICATIONS, notifHeaders, results);
 
@@ -333,7 +333,8 @@ function seedDefaultSettings(settingsSheet, results) {
     { key: 'BREAK_TIME_END', value: CONFIG.DEFAULT_SETTINGS.BREAK_TIME_END, desc: 'เวลาสิ้นสุดพักเที่ยง (เช่น 13:00)' },
     { key: 'WARD_OPTIONS', value: CONFIG.DEFAULT_SETTINGS.WARD_OPTIONS, desc: 'รายชื่อ Ward ในระบบ (คั่นด้วยจุลภาค)' },
     { key: 'DEFAULT_WARD', value: CONFIG.DEFAULT_SETTINGS.DEFAULT_WARD, desc: 'Ward เริ่มต้นสำหรับการเปิดใช้งานระบบ' },
-    { key: 'POLL_INTERVAL_SECONDS', value: CONFIG.DEFAULT_SETTINGS.POLL_INTERVAL_SECONDS, desc: 'ระยะเวลา Polling ข้อมูลหน้าเว็บ (วินาที)' }
+    { key: 'POLL_INTERVAL_SECONDS', value: CONFIG.DEFAULT_SETTINGS.POLL_INTERVAL_SECONDS, desc: 'ระยะเวลา Polling ข้อมูลหน้าเว็บ (วินาที)' },
+    { key: 'NOTIFICATION_RETENTION_DAYS', value: CONFIG.DEFAULT_SETTINGS.NOTIFICATION_RETENTION_DAYS, desc: 'จำนวนวันที่เก็บประวัติการแจ้งเตือน (วัน) ค่าเริ่มต้น 1' }
   ];
 
   defaults.forEach(item => {

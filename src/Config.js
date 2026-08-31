@@ -108,7 +108,8 @@ const CONFIG = {
     BREAK_TIME_END: '13:00',
     WARD_OPTIONS: 'ตึกพิเศษ,Ward 1,Ward 2,Ward 3',
     DEFAULT_WARD: 'ตึกพิเศษ',
-    POLL_INTERVAL_SECONDS: '30'
+    POLL_INTERVAL_SECONDS: '30',
+    NOTIFICATION_RETENTION_DAYS: '1'
   }
 };
 
