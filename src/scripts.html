@@ -853,15 +853,29 @@ const App = {
     const wardFilter = document.getElementById('board-ward-filter')?.value || 'ALL';
     const stateFilter = document.getElementById('board-state-filter')?.value || 'ALL';
 
+    const cleanDigits = searchVal.replace(/[^0-9a-zA-Z]/g, '');
+
     const filtered = this.cases.filter(c => {
       if (wardFilter !== 'ALL' && c.wardScope !== wardFilter) return false;
       if (stateFilter === 'ACTIVE' && c.currentState === 'DISPENSED') return false;
       if (stateFilter !== 'ALL' && stateFilter !== 'ACTIVE' && c.currentState !== stateFilter) return false;
       if (searchVal) {
-        const match = c.caseId.toLowerCase().includes(searchVal) ||
-                      c.rawAn.toLowerCase().includes(searchVal) ||
-                      c.roomBed.toLowerCase().includes(searchVal) ||
-                      c.wardScope.toLowerCase().includes(searchVal);
+        const caseId = String(c.caseId || '').toLowerCase();
+        const rawAn = String(c.rawAn || '').toLowerCase();
+        const maskedAn = String(c.maskedAn || '').toLowerCase();
+        const roomBed = String(c.roomBed || '').toLowerCase();
+        const wardScope = String(c.wardScope || '').toLowerCase();
+        const stateThai = String(c.stateThai || '').toLowerCase();
+        const apptStatus = String(c.appointmentStatus || '').toLowerCase();
+
+        const match = caseId.includes(searchVal) ||
+                      (rawAn && rawAn.includes(searchVal)) ||
+                      (cleanDigits && rawAn && rawAn.includes(cleanDigits)) ||
+                      maskedAn.includes(searchVal) ||
+                      roomBed.includes(searchVal) ||
+                      wardScope.includes(searchVal) ||
+                      stateThai.includes(searchVal) ||
+                      apptStatus.includes(searchVal);
         if (!match) return false;
       }
       return true;

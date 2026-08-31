@@ -291,6 +291,7 @@ function apiListCases(filters) {
 
       casesList.push({
         caseId: caseId,
+        rawAn: rawAn,
         maskedAn: maskAN(rawAn),
         roomBed: roomBed,
         appointmentStatus: apptStatus,
