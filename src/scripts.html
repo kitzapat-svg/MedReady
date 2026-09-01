@@ -1564,6 +1564,43 @@ const App = {
   },
 
   /**
+   * Set Analytics Date to a specific date (from table row click "ดูสถิติ")
+   */
+  onAnalyticsDateChanged: function(targetDate) {
+    if (!targetDate) return;
+    this.analyticsFilter.preset = 'CUSTOM';
+    this.analyticsFilter.date = targetDate;
+    this.analyticsFilter.startDate = '';
+    this.analyticsFilter.endDate = '';
+
+    const startInput = document.getElementById('analytics-start-date');
+    const endInput = document.getElementById('analytics-end-date');
+    const badgeEl = document.getElementById('analytics-date-badge');
+    const periodSelect = document.getElementById('analytics-period-select');
+
+    if (startInput) startInput.value = targetDate;
+    if (endInput) endInput.value = targetDate;
+    if (periodSelect) periodSelect.value = '';
+    if (badgeEl) badgeEl.textContent = 'วันที่ ' + targetDate;
+
+    // Reset preset buttons styling
+    const presetKeys = ['today', 'yesterday', 'week', 'this-month', 'last-month', 'this-quarter', 'this-fiscal-year', 'all'];
+    presetKeys.forEach(k => {
+      const btn = document.getElementById('btn-preset-' + k);
+      if (btn) btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors';
+    });
+
+    // Scroll smoothly to top of analytics view so user sees updated graphs/cards immediately
+    const analyticsView = document.getElementById('view-analytics');
+    if (analyticsView) {
+      analyticsView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    this.showToast('กำลังโหลดข้อมูลสถิติของวันที่ ' + targetDate, 'info');
+    this.loadAnalytics();
+  },
+
+  /**
    * Custom Date Range Input Changed
    */
   onAnalyticsCustomRangeChanged: function() {
