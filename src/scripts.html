@@ -23,43 +23,15 @@ const App = {
    * Application Entry Point
    */
   init: function() {
-    this.checkAuth();
+    // Show Google Sign-In Landing Card first on initial visit
+    this.showLogin();
   },
 
   /**
    * Check Auth & Initialize Role Views
    */
   checkAuth: function() {
-    if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      // Local/Standalone preview: display Google Login screen
-      App.showLogin();
-      return;
-    }
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.webAppUrl) {
-          App.webAppUrl = res.webAppUrl;
-        }
-
-        if (!res || !res.authenticated || res.status === 'UNAUTHENTICATED') {
-          App.showLogin(res);
-          return;
-        }
-
-        if (!res.active || res.status === 'ACCESS_DENIED' || res.status === 'ACCOUNT_DEACTIVATED') {
-          App.showAuthDenied(res);
-          return;
-        }
-
-        App.currentUser = res;
-        App.setupUserInterface();
-      })
-      .withFailureHandler(function(err) {
-        App.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message, 'error');
-        App.showAuthDenied({ message: err.message, email: '-' });
-      })
-      .apiGetCurrentUser();
+    this.handleGoogleSignIn();
   },
 
   /**
@@ -83,18 +55,50 @@ const App = {
   },
 
   /**
-   * Initiate Google Sign-In / Account Chooser using canonical Web App URL
+   * Handle Click on "Sign in with Google" Button
    */
   handleGoogleSignIn: function() {
-    const canonicalUrl = App.webAppUrl || 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec';
-    const targetUrl = 'https://accounts.google.com/AccountChooser?service=wise&continue=' + encodeURIComponent(canonicalUrl);
-    try {
-      if (window.top && window.top !== window) {
-        window.top.location.href = targetUrl;
-        return;
-      }
-    } catch (e) {}
-    window.location.href = targetUrl;
+    this.hideAllViews();
+    const loadingView = document.getElementById('view-auth-loading');
+    if (loadingView) loadingView.classList.remove('hidden');
+    this.currentScreen = 'auth-loading';
+
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      // Local/Standalone preview: display Google Login screen
+      App.showToast('โหมดแสดงผลตัวอย่าง (Preview Mode)', 'info');
+      App.showLogin();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.webAppUrl) {
+          App.webAppUrl = res.webAppUrl;
+        }
+
+        if (res && res.authenticated && res.active && res.status !== 'ACCESS_DENIED' && res.status !== 'ACCOUNT_DEACTIVATED') {
+          App.currentUser = res;
+          App.setupUserInterface();
+        } else if (res && (!res.active || res.status === 'ACCESS_DENIED' || res.status === 'ACCOUNT_DEACTIVATED')) {
+          App.showAuthDenied(res);
+        } else {
+          // If unauthenticated or needs account selection
+          const canonicalUrl = App.webAppUrl || 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec';
+          const targetUrl = 'https://accounts.google.com/AccountChooser?service=wise&continue=' + encodeURIComponent(canonicalUrl);
+          try {
+            if (window.top && window.top !== window) {
+              window.top.location.href = targetUrl;
+              return;
+            }
+          } catch (e) {}
+          window.location.href = targetUrl;
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message, 'error');
+        App.showAuthDenied({ message: err.message, email: '-' });
+      })
+      .apiGetCurrentUser();
   },
 
   /**
