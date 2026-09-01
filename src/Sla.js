@@ -84,6 +84,15 @@ function apiUpdateSettings(newSettings) {
         const cleanKey = String(k).trim();
         let cleanVal = String(v).trim();
 
+        // Validation for numeric settings
+        if (cleanKey === 'WAITING_TIME_TARGET_MINUTES' || cleanKey === 'SLA_NORMAL_MAX' || cleanKey === 'SLA_APPROACHING_MAX') {
+          const numVal = parseInt(cleanVal, 10);
+          if (isNaN(numVal) || numVal <= 0) {
+            throw new Error(`ค่า ${cleanKey} ต้องเป็นตัวเลขจำนวนเต็มที่มากกว่า 0 นาที`);
+          }
+          cleanVal = String(numVal);
+        }
+
         // Format break times as HH:mm
         if (cleanKey === 'BREAK_TIME_START' || cleanKey === 'BREAK_TIME_END') {
           const m = cleanVal.match(/(\d{1,2}):(\d{2})/);
@@ -91,10 +100,12 @@ function apiUpdateSettings(newSettings) {
             cleanVal = `${m[1].padStart(2, '0')}:${m[2]}`;
           }
         }
-        
+
+        let oldVal = '';
         if (existingKeys[cleanKey]) {
           const row = existingKeys[cleanKey];
           const valCell = sheet.getRange(row, 2);
+          oldVal = String(valCell.getValue() || '').trim();
           valCell.setNumberFormat('@'); // Plain text format
           valCell.setValue(cleanVal);
           sheet.getRange(row, 4).setValue(now);
@@ -105,6 +116,16 @@ function apiUpdateSettings(newSettings) {
           sheet.getRange(newRow, 2).setNumberFormat('@');
         }
         updatedKeys.push(cleanKey);
+
+        // Audit Log in Timeline
+        if (oldVal !== cleanVal) {
+          logTimelineEvent({
+            caseId: '-',
+            event: 'SETTING_CHANGED_' + cleanKey,
+            actor: (user.name || user.email) + ' (' + user.email + ')',
+            details: `เปลี่ยนการตั้งค่า ${cleanKey} จาก "${oldVal || '-'}" เป็น "${cleanVal}" (changedAt: ${now}, changedBy: ${user.email})`
+          });
+        }
       }
 
       return successResponse({ updated: updatedKeys }, 'บันทึกการตั้งค่าสำเร็จ');

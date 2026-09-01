@@ -1333,7 +1333,10 @@ const App = {
     preset: 'TODAY',
     date: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    ward: 'ALL',
+    shift: 'ALL',
+    targetMinutes: 40
   },
 
   /**
@@ -1590,7 +1593,7 @@ const App = {
       if (btn) btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors';
     });
 
-    // Scroll smoothly to top of analytics view so user sees updated graphs/cards immediately
+    // Scroll smoothly to top of analytics view
     const analyticsView = document.getElementById('view-analytics');
     if (analyticsView) {
       analyticsView.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1650,6 +1653,28 @@ const App = {
   },
 
   /**
+   * Ward / Shift Filter Changed in Analytics
+   */
+  onAnalyticsFilterChanged: function() {
+    const wardSelect = document.getElementById('analytics-ward-filter');
+    const shiftSelect = document.getElementById('analytics-shift-filter');
+    if (wardSelect) this.analyticsFilter.ward = wardSelect.value;
+    if (shiftSelect) this.analyticsFilter.shift = shiftSelect.value;
+    this.loadAnalytics();
+  },
+
+  /**
+   * Target Changed (Live Simulation & Policy Recalculation)
+   */
+  onAnalyticsTargetChanged: function(newTarget) {
+    const num = parseInt(newTarget, 10);
+    if (!isNaN(num) && num > 0) {
+      this.analyticsFilter.targetMinutes = num;
+      this.loadAnalytics();
+    }
+  },
+
+  /**
    * Load Analytics & KPIs
    */
   loadAnalytics: function() {
@@ -1666,25 +1691,112 @@ const App = {
       if (endInput) endInput.value = this.analyticsFilter.date;
     }
 
+    const wardSelect = document.getElementById('analytics-ward-filter');
+    const shiftSelect = document.getElementById('analytics-shift-filter');
+    const targetSelect = document.getElementById('analytics-target-select');
+
+    if (wardSelect && wardSelect.value) this.analyticsFilter.ward = wardSelect.value;
+    if (shiftSelect && shiftSelect.value) this.analyticsFilter.shift = shiftSelect.value;
+    if (targetSelect && targetSelect.value) this.analyticsFilter.targetMinutes = parseInt(targetSelect.value, 10);
+
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
           const kpis = res.data;
-          const waitEl = document.getElementById('kpi-patient-wait');
-          const prepEl = document.getElementById('kpi-prep-lead');
-          const compSlaEl = document.getElementById('kpi-sla-compliance');
-          const breachEl = document.getElementById('kpi-sla-breach');
-          const totalEl = document.getElementById('kpi-total-cases');
+          const targetMin = kpis.targetMinutes || 40;
+
+          // Sync Target Select Value if not already selected
+          if (targetSelect && String(targetSelect.value) !== String(targetMin)) {
+            targetSelect.value = String(targetMin);
+          }
+
+          // 1. PRIMARY & SECONDARY 5 CORE KPIS
+          const medEl = document.getElementById('kpi-median');
+          const p90El = document.getElementById('kpi-p90');
+          const p90SubEl = document.getElementById('kpi-p90-sub');
+          const withinTargetEl = document.getElementById('kpi-within-target');
+          const targetTitleEl = document.getElementById('kpi-target-title');
+          const withinTargetSubEl = document.getElementById('kpi-within-target-sub');
+          const meanEl = document.getElementById('kpi-mean');
           const compEl = document.getElementById('kpi-completed-cases');
+          const totalEl = document.getElementById('kpi-total-cases');
 
-          if (waitEl) waitEl.textContent = kpis.avgPatientWaitingText || (kpis.avgPatientWaitingMinutes + ' นาที');
-          if (prepEl) prepEl.textContent = kpis.avgPrepLeadText || (kpis.avgPrepLeadMinutes + ' นาที');
-          if (compSlaEl) compSlaEl.textContent = (kpis.slaComplianceRate != null ? kpis.slaComplianceRate : 100) + '%';
-          if (breachEl) breachEl.textContent = (kpis.slaBreachRate || 0) + '%';
+          if (medEl) medEl.textContent = (kpis.median != null ? kpis.median : 0) + ' min';
+          if (p90El) p90El.textContent = (kpis.p90 != null ? kpis.p90 : 0) + ' min';
+          if (p90SubEl) p90SubEl.textContent = `90% completed within ${kpis.p90 || 0} min`;
+          if (withinTargetEl) withinTargetEl.textContent = (kpis.withinTargetPercent != null ? kpis.withinTargetPercent : 100) + '%';
+          if (targetTitleEl) targetTitleEl.textContent = `Within Target (≤${targetMin} min)`;
+          if (withinTargetSubEl) withinTargetSubEl.textContent = `Within ${targetMin} min: ${kpis.withinTargetCount || 0} เคส (${kpis.withinTargetPercent || 0}%)`;
+          if (meanEl) meanEl.textContent = (kpis.mean != null ? kpis.mean : 0) + ' min';
+          if (compEl) compEl.textContent = kpis.cases || kpis.completedCases || 0;
           if (totalEl) totalEl.textContent = kpis.totalCases || 0;
-          if (compEl) compEl.textContent = kpis.completedCases || 0;
 
-          // 1. Render Waiting Time Buckets (Academic Core Metric)
+          // 2. DETAILED STATISTICS GRID
+          const p25El = document.getElementById('stat-p25');
+          const medianEl = document.getElementById('stat-median');
+          const p75El = document.getElementById('stat-p75');
+          const iqrEl = document.getElementById('stat-iqr');
+          const sdEl = document.getElementById('stat-sd');
+          const minEl = document.getElementById('stat-min');
+          const p95El = document.getElementById('stat-p95');
+          const maxEl = document.getElementById('stat-max');
+          const outlierRangeEl = document.getElementById('stat-outlier-range');
+          const outlierCountEl = document.getElementById('stat-outlier-count');
+          const invalidCountEl = document.getElementById('stat-invalid-count');
+
+          if (p25El) p25El.textContent = (kpis.p25 != null ? kpis.p25 : 0) + ' min';
+          if (medianEl) medianEl.textContent = (kpis.median != null ? kpis.median : 0) + ' min';
+          if (p75El) p75El.textContent = (kpis.p75 != null ? kpis.p75 : 0) + ' min';
+          if (iqrEl) iqrEl.textContent = (kpis.iqr != null ? kpis.iqr : 0) + ' min';
+          if (sdEl) sdEl.textContent = (kpis.sd != null ? kpis.sd : 0) + ' min';
+          if (minEl) minEl.textContent = (kpis.min != null ? kpis.min : 0) + ' min';
+          if (p95El) p95El.textContent = (kpis.p95 != null ? kpis.p95 : 0) + ' min';
+          if (maxEl) maxEl.textContent = (kpis.max != null ? kpis.max : 0) + ' min';
+
+          if (outlierRangeEl && kpis.stats) {
+            outlierRangeEl.textContent = `< ${kpis.stats.iqrLowerThreshold} หรือ > ${kpis.stats.iqrUpperThreshold} min`;
+          }
+          if (outlierCountEl) outlierCountEl.textContent = kpis.outlierCount || 0;
+          if (invalidCountEl) invalidCountEl.textContent = kpis.invalidCount || 0;
+
+          // 3. CQI INTERPRETATION HELPERS
+          const interpTyp = document.getElementById('interp-typical');
+          const interpMid = document.getElementById('interp-middle');
+          const interpP90 = document.getElementById('interp-p90');
+          const interpTgtLbl = document.getElementById('interp-target-label');
+          const interpTgtVal = document.getElementById('interp-target-val');
+
+          if (interpTyp) interpTyp.textContent = `${kpis.median || 0} min`;
+          if (interpMid) interpMid.textContent = `${kpis.p25 || 0} – ${kpis.p75 || 0} min`;
+          if (interpP90) interpP90.textContent = `${kpis.p90 || 0} min`;
+          if (interpTgtLbl) interpTgtLbl.textContent = `Within target ≤${targetMin} min`;
+          if (interpTgtVal) interpTgtVal.textContent = `${kpis.withinTargetPercent || 0}%`;
+
+          // 4. SHIFT ANALYTICS
+          const shiftEl = document.getElementById('analytics-shift-list');
+          if (shiftEl && kpis.shiftBreakdown) {
+            let sHtml = '';
+            for (const [shiftName, sData] of Object.entries(kpis.shiftBreakdown)) {
+              const sStats = sData.stats || {};
+              sHtml += `
+                <div class="p-3 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg space-y-1.5">
+                  <div class="flex items-center justify-between text-xs font-semibold text-[#1b1b1d]">
+                    <span>${shiftName}</span>
+                    <span class="font-mono text-[#0059b5]">${sData.count} เคส</span>
+                  </div>
+                  <div class="grid grid-cols-4 gap-2 text-[11px] text-[#5d5e60] pt-1 border-t border-[#e4e2e4]/60">
+                    <div>Median: <span class="font-bold text-[#1b1b1d]">${sStats.median || 0}m</span></div>
+                    <div>Mean: <span class="font-medium text-[#1b1b1d]">${sStats.mean || 0}m</span></div>
+                    <div>P90: <span class="font-medium text-[#1b1b1d]">${sStats.p90 || 0}m</span></div>
+                    <div>Within: <span class="font-bold text-[#28cd41]">${sStats.withinTargetPercent || 0}%</span></div>
+                  </div>
+                </div>
+              `;
+            }
+            shiftEl.innerHTML = sHtml;
+          }
+
+          // 5. WAITING TIME BUCKETS
           const waitBucketEl = document.getElementById('analytics-wait-buckets');
           if (waitBucketEl && kpis.waitingTimeBuckets) {
             const completedCount = kpis.completedCases || 1;
@@ -1693,7 +1805,7 @@ const App = {
               { label: 'น้อยกว่า 15 นาที (เร็วมาก)', count: b.under15 || 0, color: 'bg-[#28cd41]', textCol: 'text-[#28cd41]' },
               { label: '15 - 30 นาที (มาตรฐานดีมาก)', count: b.under30 || 0, color: 'bg-[#0071e3]', textCol: 'text-[#0071e3]' },
               { label: '31 - 45 นาที (ใกล้เกณฑ์ SLA)', count: b.under45 || 0, color: 'bg-[#ff9f0a]', textCol: 'text-[#ff9f0a]' },
-              { label: 'มากกว่า 45 นาที (เกิน SLA)', count: b.over45 || 0, color: 'bg-[#ff3b30]', textCol: 'text-[#ff3b30]' }
+              { label: 'มากกว่า 45 นาที (เกินเกณฑ์)', count: b.over45 || 0, color: 'bg-[#ff3b30]', textCol: 'text-[#ff3b30]' }
             ];
             let bHtml = '';
             buckets.forEach(item => {
@@ -1713,7 +1825,37 @@ const App = {
             waitBucketEl.innerHTML = bHtml;
           }
 
-          // 2. Render Hourly Volume Flow
+          // 6. WARD ANALYTICS
+          const wardListEl = document.getElementById('analytics-ward-list');
+          if (wardListEl && kpis.wardStats) {
+            let wHtml = '';
+            const wards = Object.keys(kpis.wardStats);
+            if (wards.length === 0) {
+              wHtml = '<div class="text-xs text-[#86868b] text-center py-4">ยังไม่มีข้อมูลเคสแยกตาม Ward</div>';
+            } else {
+              wards.forEach(w => {
+                const wObj = kpis.wardStats[w];
+                const wStats = wObj.stats || {};
+                wHtml += `
+                  <div class="p-3 bg-[#fcf8fb] border border-[#e4e2e4] rounded-lg space-y-1.5">
+                    <div class="flex items-center justify-between text-xs font-semibold text-[#1b1b1d]">
+                      <span>${w}</span>
+                      <span class="font-mono text-[#0059b5]">${wObj.count} เคส</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 text-[11px] text-[#5d5e60] pt-1 border-t border-[#e4e2e4]/60">
+                      <div>Median: <span class="font-bold text-[#1b1b1d]">${wStats.median || 0}m</span></div>
+                      <div>Mean: <span class="font-medium text-[#1b1b1d]">${wStats.mean || 0}m</span></div>
+                      <div>P90: <span class="font-medium text-[#1b1b1d]">${wStats.p90 || 0}m</span></div>
+                      <div>Within: <span class="font-bold text-[#28cd41]">${wStats.withinTargetPercent || 0}%</span></div>
+                    </div>
+                  </div>
+                `;
+              });
+              wardListEl.innerHTML = wHtml;
+            }
+          }
+
+          // 7. HOURLY BREAKDOWN
           const hourlyEl = document.getElementById('analytics-hourly-list');
           if (hourlyEl && kpis.hourlyBreakdown) {
             const hours = Object.keys(kpis.hourlyBreakdown).sort();
@@ -1740,64 +1882,6 @@ const App = {
               hourlyEl.innerHTML = hHtml;
             }
           }
-
-          // 3. Render Stage Distribution
-          const stageListEl = document.getElementById('analytics-stage-list');
-          if (stageListEl && kpis.stageCounts) {
-            const stages = [
-              { key: 'SUBMITTED', label: '1. รอห้องยาดำเนินการ', color: 'bg-[#0071e3]' },
-              { key: 'IN_PROGRESS', label: '2. กำลังเตรียมยา', color: 'bg-[#0059b5]' },
-              { key: 'READY', label: '3. พร้อมจ่าย', color: 'bg-[#28cd41]' },
-              { key: 'BASKET_RECEIVED', label: '4. รอจ่ายยา (รับตะกร้าแล้ว)', color: 'bg-[#ff9f0a]' },
-              { key: 'DISPENSED', label: '5. จ่ายยาแล้ว', color: 'bg-[#86868b]' }
-            ];
-            const total = kpis.totalCases || 1;
-            let sHtml = '';
-            stages.forEach(st => {
-              const count = kpis.stageCounts[st.key] || 0;
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-              sHtml += `
-                <div class="space-y-1">
-                  <div class="flex justify-between text-xs">
-                    <span class="font-medium text-[#1b1b1d]">${st.label}</span>
-                    <span class="font-mono text-[#5d5e60]">${count} เคส (${pct}%)</span>
-                  </div>
-                  <div class="w-full h-2 bg-[#f0edef] rounded-full overflow-hidden">
-                    <div class="h-full ${st.color} rounded-full transition-all" style="width: ${pct}%"></div>
-                  </div>
-                </div>
-              `;
-            });
-            stageListEl.innerHTML = sHtml;
-          }
-
-          // 4. Render Ward Breakdown
-          const wardListEl = document.getElementById('analytics-ward-list');
-          if (wardListEl && kpis.wardBreakdown) {
-            const total = kpis.totalCases || 1;
-            let wHtml = '';
-            const wards = Object.keys(kpis.wardBreakdown);
-            if (wards.length === 0) {
-              wHtml = '<div class="text-xs text-[#86868b] text-center py-4">ยังไม่มีข้อมูลเคสแยกตาม Ward</div>';
-            } else {
-              wards.forEach(w => {
-                const count = kpis.wardBreakdown[w] || 0;
-                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                wHtml += `
-                  <div class="space-y-1">
-                    <div class="flex justify-between text-xs">
-                      <span class="font-medium text-[#1b1b1d]">${w}</span>
-                      <span class="font-mono text-[#5d5e60]">${count} เคส (${pct}%)</span>
-                    </div>
-                    <div class="w-full h-2 bg-[#f0edef] rounded-full overflow-hidden">
-                      <div class="h-full bg-[#0071e3] rounded-full transition-all" style="width: ${pct}%"></div>
-                    </div>
-                  </div>
-                `;
-              });
-              wardListEl.innerHTML = wHtml;
-            }
-          }
         }
       })
       .withFailureHandler(function(err) {
@@ -1820,7 +1904,7 @@ const App = {
           if (list.length === 0) {
             tableBody.innerHTML = `
               <tr>
-                <td colspan="7" class="py-6 text-center text-[#86868b]">
+                <td colspan="8" class="py-6 text-center text-[#86868b]">
                   ยังไม่มีประวัติสรุปข้อมูลรายวัน (กดปุ่ม "สรุปยอด & จัดเก็บ" ด้านบนเพื่อประมวลผลสรุปยอดวันนี้)
                 </td>
               </tr>
@@ -1840,8 +1924,9 @@ const App = {
                 <td class="py-3 px-4 font-semibold text-[#1b1b1d]">${item.date}</td>
                 <td class="py-3 px-4 text-center font-mono">${item.totalCases}</td>
                 <td class="py-3 px-4 text-center font-mono text-[#28cd41] font-semibold">${item.completedCases}</td>
-                <td class="py-3 px-4 font-mono font-medium">${item.avgPatientWaitingMinutes} นาที</td>
-                <td class="py-3 px-4 font-mono text-[#5d5e60]">${item.avgPrepLeadMinutes} นาที</td>
+                <td class="py-3 px-4 font-mono font-bold text-[#0059b5]">${item.avgPatientWaitingMinutes || 0} นาที</td>
+                <td class="py-3 px-4 font-mono text-[#5d5e60]">${item.avgPrepLeadMinutes || 0} นาที</td>
+                <td class="py-3 px-4 font-mono text-[#5d5e60]">${item.avgActivePrepMinutes || 0} นาที</td>
                 <td class="py-3 px-4 text-center">${rateBadge}</td>
                 <td class="py-3 px-4 text-right space-x-1">
                   <button onclick="App.onAnalyticsDateChanged('${item.date}')" class="px-2.5 py-1 bg-white border border-[#e4e2e4] text-[#0071e3] hover:bg-[#f0edef] rounded text-[11px] font-medium transition-colors" title="ดูรายละเอียดวันนั้น">
@@ -1858,7 +1943,7 @@ const App = {
         }
       })
       .withFailureHandler(function(err) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-[#ff3b30]">โหลดข้อมูลไม่สำเร็จ: ${err.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-[#ff3b30]">โหลดข้อมูลไม่สำเร็จ: ${err.message}</td></tr>`;
       })
       .apiGetDailySummaryList(30);
   },
@@ -1898,7 +1983,10 @@ const App = {
     const filter = {
       date: specificDate || this.analyticsFilter.date,
       startDate: !specificDate ? this.analyticsFilter.startDate : '',
-      endDate: !specificDate ? this.analyticsFilter.endDate : ''
+      endDate: !specificDate ? this.analyticsFilter.endDate : '',
+      ward: this.analyticsFilter.ward || 'ALL',
+      shift: this.analyticsFilter.shift || 'ALL',
+      targetMinutes: this.analyticsFilter.targetMinutes || 40
     };
 
     App.showToast('กำลังเตรียมข้อมูลสำหรับดาวน์โหลด...', 'info');
@@ -1906,7 +1994,7 @@ const App = {
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
           const csvContent = res.data.csvContent;
-          const filename = res.data.filename || 'MedReady_Export_Report.csv';
+          const filename = res.data.filename || 'MedReady_Discharge_Waiting_Time_Report.csv';
           
           const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const link = document.createElement('a');
@@ -1919,7 +2007,7 @@ const App = {
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
 
-          App.showToast(`ดาวน์โหลดข้อมูลสำเร็จ (${res.data.rowCount} แถว)`, 'success');
+          App.showToast(`ดาวน์โหลดข้อมูลสำเร็จ (${res.data.rowCount} เคส)`, 'success');
         } else {
           App.showToast('ไม่สามารถส่งออกข้อมูล: ' + (res ? res.error : 'Unknown'), 'error');
         }
@@ -2527,7 +2615,21 @@ const App = {
       }
     }
 
-    // 2. User Modal Dropdown
+    // 2. Analytics Ward Filter Dropdown
+    const analyticsWardSelect = document.getElementById('analytics-ward-filter');
+    if (analyticsWardSelect) {
+      const currentVal = analyticsWardSelect.value;
+      let optHtml = '<option value="ALL">ทุก Ward</option>';
+      wardNames.forEach(w => {
+        optHtml += `<option value="${w}">${w}</option>`;
+      });
+      analyticsWardSelect.innerHTML = optHtml;
+      if (wardNames.includes(currentVal) || currentVal === 'ALL') {
+        analyticsWardSelect.value = currentVal;
+      }
+    }
+
+    // 3. User Modal Dropdown
     this.populateWardDropdownForModal();
   },
 
@@ -2552,23 +2654,25 @@ const App = {
   },
 
   // -------------------------------------------------------------------------
-  // SLA & BREAK SETTINGS
+  // SLA, TARGET & BREAK SETTINGS
   // -------------------------------------------------------------------------
 
   /**
-   * Loads SLA & Break settings values into form inputs
+   * Loads SLA, Waiting Target & Break settings values into form inputs
    */
   loadAdminSettings: function() {
     this.loadDailyTriggerStatus();
     google.script.run
       .withSuccessHandler(function(settings) {
         if (settings) {
+          const targetInput = document.getElementById('setting-waiting-target');
           const normInput = document.getElementById('setting-sla-normal');
           const appInput = document.getElementById('setting-sla-approaching');
           const breakEnabledInput = document.getElementById('setting-break-enabled');
           const breakStartInput = document.getElementById('setting-break-start');
           const breakEndInput = document.getElementById('setting-break-end');
 
+          if (targetInput) targetInput.value = settings.WAITING_TIME_TARGET_MINUTES || '40';
           if (normInput) normInput.value = settings.SLA_NORMAL_MAX || '30';
           if (appInput) appInput.value = settings.SLA_APPROACHING_MAX || '45';
           if (breakEnabledInput) breakEnabledInput.checked = settings.BREAK_TIME_ENABLED !== 'false';
@@ -2668,6 +2772,7 @@ const App = {
 
   handleSaveSettings: function(e) {
     if (e && e.preventDefault) e.preventDefault();
+    const targetInput = document.getElementById('setting-waiting-target');
     const normalInput = document.getElementById('setting-sla-normal');
     const appInput = document.getElementById('setting-sla-approaching');
     const breakEnabledInput = document.getElementById('setting-break-enabled');
@@ -2676,11 +2781,17 @@ const App = {
 
     if (!normalInput || !appInput) return;
 
+    const targetVal = targetInput ? targetInput.value.trim() : '40';
     const normalVal = normalInput.value.trim();
     const appVal = appInput.value.trim();
     const breakEnabled = breakEnabledInput ? String(breakEnabledInput.checked) : 'true';
     const breakStart = breakStartInput ? breakStartInput.value.trim() : '12:00';
     const breakEnd = breakEndInput ? breakEndInput.value.trim() : '13:00';
+
+    if (!targetVal || parseInt(targetVal, 10) <= 0) {
+      this.showToast('กรุณากรอกเป้าหมายเวลารอรับยาให้ถูกต้อง (มากกว่า 0 นาที)', 'warning');
+      return;
+    }
 
     if (!normalVal || !appVal || parseInt(normalVal, 10) <= 0 || parseInt(appVal, 10) <= 0) {
       this.showToast('กรุณากรอกเกณฑ์เวลา SLA ให้ถูกต้อง (มากกว่า 0 นาที)', 'warning');
@@ -2706,6 +2817,7 @@ const App = {
         App.showToast('ไม่สามารถบันทึกการตั้งค่า: ' + err.message, 'error');
       })
       .apiUpdateSettings({
+        WAITING_TIME_TARGET_MINUTES: targetVal,
         SLA_NORMAL_MAX: normalVal,
         SLA_APPROACHING_MAX: appVal,
         BREAK_TIME_ENABLED: breakEnabled,

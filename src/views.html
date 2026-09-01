@@ -412,18 +412,18 @@
 </div>
 
 <!-- 7. ANALYTICS VIEW -->
-<div id="view-analytics" class="hidden space-y-8">
+<div id="view-analytics" class="hidden space-y-6">
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
       <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0059b5] mb-1 font-display">
-        Operational Intelligence & Academic Research
+        IPD Discharge Medication Waiting Time Analytics
       </div>
-      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">ประสิทธิภาพการจ่ายยา & เวลารอ</h1>
-      <p class="text-[#86868b] text-sm mt-0.5">การวิเคราะห์ระยะเวลาเตรียมยา และเวลารอรับยาจริง</p>
+      <h1 class="font-display text-3xl font-semibold text-[#1b1b1d]">IPD Discharge Waiting Time</h1>
+      <p class="text-[#86868b] text-sm mt-0.5">การวิเคราะห์และติดตามเวลารอรับยากลับบ้าน สำหรับงานบริการ เฝ้าระวัง และงานวิจัย CQI / R2R</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <button onclick="App.exportAcademicReport()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium shadow-sm transition-colors" title="ดาวน์โหลดไฟล์ CSV สำหรับวิเคราะห์ข้อมูล">
-        <span class="material-symbols-outlined text-base">download</span> Export ข้อมูล
+      <button onclick="App.exportAcademicReport()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium shadow-sm transition-colors" title="ดาวน์โหลดไฟล์ CSV รายเคสและสถิติสรุปสำหรับงานวิจัย">
+        <span class="material-symbols-outlined text-base">download</span> Export ข้อมูล (CSV)
       </button>
       <button onclick="App.runDailyArchiving()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e4e2e4] text-[#1b1b1d] hover:bg-[#f6f3f5] rounded-lg text-xs font-medium transition-colors" title="ประมวลผลสรุปยอดวันนี้และย้ายข้อมูลเก่าไปคลังประวัติ">
         <span class="material-symbols-outlined text-base text-[#0059b5]">archive</span> สรุปยอด &amp; จัดเก็บ
@@ -434,9 +434,9 @@
     </div>
   </div>
 
-  <!-- Date Range Filter Bar -->
+  <!-- Filter & Target Configuration Bar -->
   <div class="bg-white border border-[#e4e2e4] rounded-xl p-4 shadow-sm space-y-3">
-    <!-- Top Row: Quick Presets & Period Dropdown -->
+    <!-- Top Row: Presets & Periods -->
     <div class="flex flex-wrap items-center justify-between gap-3">
       <!-- Quick Presets -->
       <div class="flex flex-wrap items-center gap-1.5" id="analytics-preset-buttons">
@@ -453,7 +453,7 @@
         <button type="button" onclick="App.setAnalyticsDatePreset('ALL')" id="btn-preset-all" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#f0edef] text-[#414753] hover:bg-[#e4e2e4] transition-colors">ทั้งหมด</button>
       </div>
 
-      <!-- Quick Period Selector (Quarter / Fiscal Year / Specific Year) -->
+      <!-- Quick Period Selector -->
       <div class="flex items-center gap-2">
         <select id="analytics-period-select" onchange="App.onAnalyticsPeriodSelect(this.value)" class="bg-[#f0edef] border border-[#e4e2e4] rounded-lg px-3 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:ring-1 focus:ring-[#0071e3] font-medium cursor-pointer">
           <option value="">-- เลือกตามช่วงเวลา (ไตรมาส / ปีงบ) --</option>
@@ -475,18 +475,42 @@
       </div>
     </div>
 
-    <!-- Bottom Row: Custom Date Range (ระหว่างวันที่ ... ถึงวันที่ ...) & Active Badge -->
+    <!-- Middle Row: Ward, Shift, Target Selectors -->
     <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#f0edef]">
-      <div class="flex flex-wrap items-center gap-2">
-        <span class="text-xs text-[#5d5e60] font-medium flex items-center gap-1">
-          <span class="material-symbols-outlined text-sm text-[#0071e3]">date_range</span> ระบุช่วงวันที่:
-        </span>
-        <input type="date" id="analytics-start-date" onchange="App.onAnalyticsCustomRangeChanged()" class="px-2.5 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
-        <span class="text-xs text-[#86868b]">ถึง</span>
-        <input type="date" id="analytics-end-date" onchange="App.onAnalyticsCustomRangeChanged()" class="px-2.5 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
-        <button type="button" onclick="App.applyAnalyticsCustomRange()" class="px-3 py-1.5 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium transition-colors shadow-xs">
-          ดูข้อมูล
-        </button>
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Ward Filter -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-[#5d5e60] font-medium">หอผู้ป่วย:</span>
+          <select id="analytics-ward-filter" onchange="App.onAnalyticsFilterChanged()" class="bg-white border border-[#e4e2e4] rounded-lg px-2.5 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+            <option value="ALL">ทุก Ward</option>
+          </select>
+        </div>
+
+        <!-- Shift Filter -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-[#5d5e60] font-medium">เวรปฏิบัติงาน:</span>
+          <select id="analytics-shift-filter" onchange="App.onAnalyticsFilterChanged()" class="bg-white border border-[#e4e2e4] rounded-lg px-2.5 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+            <option value="ALL">ทุกเวร (24 ชม.)</option>
+            <option value="เวรเช้า (08:00 - 16:00)">เวรเช้า (08:00 - 16:00)</option>
+            <option value="เวรบ่าย (16:00 - 24:00)">เวรบ่าย (16:00 - 24:00)</option>
+            <option value="เวรดึก (00:00 - 08:00)">เวรดึก (00:00 - 08:00)</option>
+          </select>
+        </div>
+
+        <!-- Target Setting / Live Simulator -->
+        <div class="flex items-center gap-1.5 bg-[#fcf8fb] border border-[#e4e2e4] px-2.5 py-1 rounded-lg">
+          <span class="text-xs font-semibold text-[#1b1b1d] flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm text-[#28cd41]">flag</span>
+            เป้าหมาย (Target):
+          </span>
+          <select id="analytics-target-select" onchange="App.onAnalyticsTargetChanged(this.value)" class="bg-white border border-[#e4e2e4] rounded px-2 py-0.5 text-xs font-bold text-[#0059b5] focus:outline-none">
+            <option value="20">20 นาที</option>
+            <option value="30">30 นาที</option>
+            <option value="40" selected>40 นาที</option>
+            <option value="45">45 นาที</option>
+            <option value="60">60 นาที</option>
+          </select>
+        </div>
       </div>
 
       <div class="flex items-center gap-2">
@@ -494,77 +518,212 @@
         <span id="analytics-date-badge" class="text-xs font-semibold text-[#0059b5] bg-[#0071e3]/10 px-3 py-1 rounded-md">วันนี้</span>
       </div>
     </div>
-  </div>
 
-  <!-- KPI Headline Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- True Patient Waiting Time (The Most Important Metric!) -->
-    <div class="medready-card p-5 border-l-4 border-l-[#28cd41]">
-      <div class="text-xs font-medium text-[#5d5e60] mb-1">เวลารอรับยาจริงเฉลี่ย</div>
-      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-patient-wait">0 นาที</div>
-      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
-        <span class="material-symbols-outlined text-xs text-[#28cd41]">timer</span>
-        นับจากรับตะกร้าถึงจ่ายยา
-      </div>
-    </div>
-
-    <!-- Preparation Lead Time -->
-    <div class="medready-card p-5 border-l-4 border-l-[#0071e3]">
-      <div class="text-xs font-medium text-[#5d5e60] mb-1">ระยะเวลาเตรียมยาเฉลี่ย</div>
-      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-prep-lead">0 นาที</div>
-      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
-        <span class="material-symbols-outlined text-xs text-[#0071e3]">schedule</span>
-        นับจาก Ward ส่งถึงพร้อมจ่าย
-      </div>
-    </div>
-
-    <!-- SLA Breach Rate -->
-    <div class="medready-card p-5 border-l-4 border-l-[#ff9f0a]">
-      <div class="text-xs font-medium text-[#5d5e60] mb-1">อัตราผ่านเกณฑ์ SLA (&le;45 นาที)</div>
-      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-sla-compliance">100%</div>
-      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
-        <span class="material-symbols-outlined text-xs text-[#ff9f0a]">warning</span>
-        เกินเกณฑ์ SLA: <span id="kpi-sla-breach" class="text-[#ff3b30] font-medium ml-1">0%</span>
-      </div>
-    </div>
-
-    <!-- Total Cases -->
-    <div class="medready-card p-5">
-      <div class="text-xs font-medium text-[#5d5e60] mb-1">จำนวนเคสทั้งหมด</div>
-      <div class="font-display text-3xl font-bold text-[#1b1b1d] tracking-tight" id="kpi-total-cases">0</div>
-      <div class="text-[11px] text-[#86868b] mt-1.5 flex items-center gap-1">
-        <span class="material-symbols-outlined text-xs text-[#86868b]">inventory_2</span>
-        สำเร็จ: <span id="kpi-completed-cases" class="font-medium text-[#28cd41] ml-0.5">0</span>
-      </div>
+    <!-- Bottom Row: Custom Date Range -->
+    <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#f0edef]/60">
+      <span class="text-xs text-[#5d5e60] font-medium flex items-center gap-1">
+        <span class="material-symbols-outlined text-sm text-[#0071e3]">date_range</span> ระบุช่วงวันที่:
+      </span>
+      <input type="date" id="analytics-start-date" onchange="App.onAnalyticsCustomRangeChanged()" class="px-2.5 py-1 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+      <span class="text-xs text-[#86868b]">ถึง</span>
+      <input type="date" id="analytics-end-date" onchange="App.onAnalyticsCustomRangeChanged()" class="px-2.5 py-1 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+      <button type="button" onclick="App.applyAnalyticsCustomRange()" class="px-3 py-1 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium transition-colors shadow-xs">
+        ดูข้อมูล
+      </button>
     </div>
   </div>
 
-  <!-- Academic Metrics: Waiting Time Distribution & Hourly Volume -->
+  <!-- DASHBOARD MAIN 5 CORE KPIS (Visual Hierarchy) -->
+  <div class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-bold text-[#414753] uppercase tracking-wider font-display flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-sm text-[#0071e3]">analytics</span>
+        ตัวชี้วัดหลัก (Core KPIs)
+      </h2>
+      <span class="text-[11px] text-[#86868b]">คำนวณจากเคสจ่ายยาจริง (DISPENSED)</span>
+    </div>
+
+    <!-- PRIMARY KPIS (3 Cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- 1. MEDIAN (Typical Waiting Time) -->
+      <div class="medready-card p-6 border-l-4 border-l-[#0071e3] shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold uppercase tracking-wider text-[#0059b5] font-display">Median (ค่ามัธยฐาน)</div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#0071e3]/10 text-[#0059b5]">PRIMARY</span>
+        </div>
+        <div class="font-display text-4xl font-extrabold text-[#1b1b1d] mt-2 tracking-tight" id="kpi-median">0 min</div>
+        <div class="text-xs text-[#5d5e60] mt-2 flex items-center gap-1.5 font-medium">
+          <span class="material-symbols-outlined text-sm text-[#0071e3]">timer</span>
+          <span>Typical waiting time</span>
+        </div>
+      </div>
+
+      <!-- 2. P90 (90% Waiting Time) -->
+      <div class="medready-card p-6 border-l-4 border-l-[#ff9f0a] shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold uppercase tracking-wider text-[#ff9f0a] font-display">P90 (Percentile 90)</div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#ff9f0a]/10 text-[#ff9f0a]">PRIMARY</span>
+        </div>
+        <div class="font-display text-4xl font-extrabold text-[#1b1b1d] mt-2 tracking-tight" id="kpi-p90">0 min</div>
+        <div class="text-xs text-[#5d5e60] mt-2 flex items-center gap-1.5 font-medium">
+          <span class="material-symbols-outlined text-sm text-[#ff9f0a]">speed</span>
+          <span id="kpi-p90-sub">90% completed within</span>
+        </div>
+      </div>
+
+      <!-- 3. WITHIN TARGET % -->
+      <div class="medready-card p-6 border-l-4 border-l-[#28cd41] shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold uppercase tracking-wider text-[#28cd41] font-display" id="kpi-target-title">Within Target (&le;40 min)</div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#28cd41]/10 text-[#28cd41]">PRIMARY</span>
+        </div>
+        <div class="font-display text-4xl font-extrabold text-[#1b1b1d] mt-2 tracking-tight text-[#28cd41]" id="kpi-within-target">100%</div>
+        <div class="text-xs text-[#5d5e60] mt-2 flex items-center gap-1.5 font-medium">
+          <span class="material-symbols-outlined text-sm text-[#28cd41]">check_circle</span>
+          <span id="kpi-within-target-sub">Within 40 min: 0 เคส</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECONDARY KPIS (2 Cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+      <!-- 4. MEAN (Average) -->
+      <div class="medready-card p-5 border-l-4 border-l-[#86868b] shadow-xs">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold uppercase tracking-wider text-[#5d5e60] font-display">Mean (ค่าเฉลี่ย)</div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f0edef] text-[#5d5e60]">SECONDARY</span>
+        </div>
+        <div class="font-display text-2xl font-bold text-[#1b1b1d] mt-1" id="kpi-mean">0 min</div>
+        <div class="text-[11px] text-[#86868b] mt-1">เวลารอรับยาจริงเฉลี่ยทางคณิตศาสตร์</div>
+      </div>
+
+      <!-- 5. CASES (N) -->
+      <div class="medready-card p-5 border-l-4 border-l-[#86868b] shadow-xs">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold uppercase tracking-wider text-[#5d5e60] font-display">Cases (จำนวนเคสที่จ่ายยาแล้ว)</div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f0edef] text-[#5d5e60]">SECONDARY</span>
+        </div>
+        <div class="font-display text-2xl font-bold text-[#1b1b1d] mt-1" id="kpi-completed-cases">0</div>
+        <div class="text-[11px] text-[#86868b] mt-1">เคสที่มีข้อมูลคำนวณครบถ้วน (จากทั้งหมด <span id="kpi-total-cases" class="font-semibold text-[#1b1b1d]">0</span> เคส)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAILED STATISTICS & CLINICAL / CQI INTERPRETATION -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Detailed Statistics Grid (2 Cols on lg) -->
+    <div class="lg:col-span-2 medready-card p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-[#e4e2e4] pb-3">
+        <h3 class="font-display text-base font-semibold text-[#1b1b1d] flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#0071e3]">query_stats</span>
+          สถิติเชิงลึก (Detailed Statistics)
+        </h3>
+        <span class="text-[11px] text-[#86868b]">วิธี Percentile แบบ Linear Interpolation (R-7 / NIST)</span>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">P25 (Percentile 25)</div>
+          <div class="font-display text-lg font-bold text-[#1b1b1d] mt-0.5" id="stat-p25">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">Median (P50)</div>
+          <div class="font-display text-lg font-bold text-[#0059b5] mt-0.5" id="stat-median">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">P75 (Percentile 75)</div>
+          <div class="font-display text-lg font-bold text-[#1b1b1d] mt-0.5" id="stat-p75">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">IQR (P75 - P25)</div>
+          <div class="font-display text-lg font-bold text-[#1b1b1d] mt-0.5" id="stat-iqr">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">SD (Sample SD)</div>
+          <div class="font-display text-lg font-bold text-[#1b1b1d] mt-0.5" id="stat-sd">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">Min (ค่าน้อยสุด)</div>
+          <div class="font-display text-lg font-bold text-[#28cd41] mt-0.5" id="stat-min">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">P95 (Percentile 95)</div>
+          <div class="font-display text-lg font-bold text-[#ff9f0a] mt-0.5" id="stat-p95">-</div>
+        </div>
+        <div class="bg-[#fcf8fb] border border-[#e4e2e4] p-3 rounded-lg">
+          <div class="text-[11px] font-semibold text-[#5d5e60]">Max (ค่ามากสุด)</div>
+          <div class="font-display text-lg font-bold text-[#ff3b30] mt-0.5" id="stat-max">-</div>
+        </div>
+      </div>
+
+      <!-- Outliers & Verification Summary -->
+      <div class="pt-2 text-xs text-[#5d5e60] flex flex-wrap items-center justify-between gap-2 border-t border-[#e4e2e4]/60">
+        <div>
+          <span>เกณฑ์ Outlier (IQR 1.5&times;): </span>
+          <span class="font-mono font-medium text-[#1b1b1d]" id="stat-outlier-range">&lt; 0 หรือ &gt; 0 min</span>
+          <span class="ml-1 text-[#86868b]">(พบ <span id="stat-outlier-count" class="font-semibold text-[#ff9f0a]">0</span> เคส)</span>
+        </div>
+        <div class="text-[#86868b]">
+          เคสไม่สมบูรณ์ (Invalid): <span id="stat-invalid-count" class="font-semibold text-[#ff3b30]">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CQI & Interpretation Helper Box -->
+    <div class="medready-card p-6 space-y-4 bg-gradient-to-br from-[#fcf8fb] to-[#f6f3f5] border border-[#e4e2e4]">
+      <h3 class="font-display text-base font-semibold text-[#1b1b1d] flex items-center gap-2">
+        <span class="material-symbols-outlined text-[#28cd41]">lightbulb</span>
+        การตีความข้อมูล (Interpretation)
+      </h3>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="p-2.5 bg-white rounded-lg border border-[#e4e2e4]">
+          <div class="text-[#86868b] text-[11px]">Typical waiting time</div>
+          <div class="font-semibold text-sm text-[#0059b5]" id="interp-typical">29 min</div>
+        </div>
+        <div class="p-2.5 bg-white rounded-lg border border-[#e4e2e4]">
+          <div class="text-[#86868b] text-[11px]">Middle 50% (กลุ่มตรงกลาง)</div>
+          <div class="font-semibold text-sm text-[#1b1b1d]" id="interp-middle">19 - 38 min</div>
+        </div>
+        <div class="p-2.5 bg-white rounded-lg border border-[#e4e2e4]">
+          <div class="text-[#86868b] text-[11px]">90% completed within</div>
+          <div class="font-semibold text-sm text-[#ff9f0a]" id="interp-p90">46 min</div>
+        </div>
+        <div class="p-2.5 bg-white rounded-lg border border-[#e4e2e4]">
+          <div class="text-[#86868b] text-[11px]" id="interp-target-label">Within target &le;40 min</div>
+          <div class="font-semibold text-sm text-[#28cd41]" id="interp-target-val">84.5%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BREAKDOWNS: SHIFT & WARD ANALYTICS -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Waiting Time Distribution (R2R Core Indicator) -->
+    <!-- Shift Breakdown -->
     <div class="medready-card p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-display text-base font-semibold text-[#1b1b1d] flex items-center gap-2">
-          <span class="material-symbols-outlined text-[#28cd41] text-lg">donut_large</span>
-          การกระจายเวลารอรับยาจริง (Waiting Time Buckets)
+          <span class="material-symbols-outlined text-[#0071e3]">schedule</span>
+          การกระจายตามเวรปฏิบัติงาน (Shift Analytics)
         </h3>
-        <span class="text-[11px] text-[#86868b]">ตัวชี้วัด R2R / QI</span>
+        <span class="text-[11px] text-[#86868b]">จำแนกตามเวลา</span>
       </div>
-      <div class="space-y-3 text-xs" id="analytics-wait-buckets">
+      <div class="space-y-3 text-xs" id="analytics-shift-list">
         <!-- Injected dynamically -->
       </div>
     </div>
 
-    <!-- Hourly Volume Flow -->
+    <!-- Waiting Time Distribution Buckets -->
     <div class="medready-card p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-display text-base font-semibold text-[#1b1b1d] flex items-center gap-2">
-          <span class="material-symbols-outlined text-[#0071e3] text-lg">query_builder</span>
-          ปริมาณการส่งเคสตามช่วงเวลา (Hourly Flow)
+          <span class="material-symbols-outlined text-[#28cd41]">donut_large</span>
+          ช่วงระยะเวลารอคอย (Waiting Time Buckets)
         </h3>
-        <span class="text-[11px] text-[#86868b]">ความหนาแน่นรายชั่วโมง</span>
+        <span class="text-[11px] text-[#86868b]">ตัวชี้วัด CQI / R2R</span>
       </div>
-      <div class="space-y-3 text-xs" id="analytics-hourly-list">
+      <div class="space-y-3 text-xs" id="analytics-wait-buckets">
         <!-- Injected dynamically -->
       </div>
     </div>
@@ -572,18 +731,24 @@
 
   <!-- Stage Breakdown Table & Ward Breakdown -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Stage Breakdown -->
+    <!-- Ward Volume Breakdown -->
     <div class="medready-card p-6">
-      <h3 class="font-display text-base font-semibold text-[#1b1b1d] mb-4">การกระจายตามขั้นตอน (State Distribution)</h3>
-      <div class="space-y-3 text-xs" id="analytics-stage-list">
+      <h3 class="font-display text-base font-semibold text-[#1b1b1d] mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-[#28cd41]">apartment</span>
+        สถิติแยกตาม Ward / หอผู้ป่วย
+      </h3>
+      <div class="space-y-3 text-xs" id="analytics-ward-list">
         <!-- Injected dynamically -->
       </div>
     </div>
 
-    <!-- Ward Volume Breakdown -->
+    <!-- Hourly Volume Flow -->
     <div class="medready-card p-6">
-      <h3 class="font-display text-base font-semibold text-[#1b1b1d] mb-4">ปริมาณงานแยกตาม Ward</h3>
-      <div class="space-y-3 text-xs" id="analytics-ward-list">
+      <h3 class="font-display text-base font-semibold text-[#1b1b1d] mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-[#0071e3]">query_builder</span>
+        ปริมาณการส่งเคสรายชั่วโมง (Hourly Flow)
+      </h3>
+      <div class="space-y-3 text-xs" id="analytics-hourly-list">
         <!-- Injected dynamically -->
       </div>
     </div>
@@ -597,7 +762,7 @@
           <span class="material-symbols-outlined text-[#0071e3]">history</span>
           ประวัติการสรุปข้อมูลรายวัน (Daily Summaries History)
         </h3>
-        <p class="text-xs text-[#86868b] mt-0.5">ข้อมูลที่ถูกประมวลผลและจัดเก็บอย่างเป็นระบบ สามารถดึงไปทำผลงานวิชาการย้อนหลังได้ทันที</p>
+        <p class="text-xs text-[#86868b] mt-0.5">ข้อมูลที่ถูกประมวลผลและจัดเก็บอย่างเป็นระบบ พร้อมใช้สำหรับรายงาน CQI และ R2R</p>
       </div>
       <button onclick="App.loadDailySummaryHistory()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-[#e4e2e4] rounded-lg text-xs text-[#414753] hover:bg-[#eae7ea] transition-colors">
         <span class="material-symbols-outlined text-sm">history_edu</span> โหลดประวัติสรุป
@@ -610,16 +775,17 @@
           <tr class="bg-[#f0edef] text-[#5d5e60] font-display font-medium border-b border-[#e4e2e4]">
             <th class="py-3 px-4">วันที่</th>
             <th class="py-3 px-4 text-center">เคสทั้งหมด</th>
-            <th class="py-3 px-4 text-center">สำเร็จ</th>
-            <th class="py-3 px-4">เวลารอเฉลี่ย (นาที)</th>
-            <th class="py-3 px-4">เวลาเตรียมเฉลี่ย</th>
+            <th class="py-3 px-4 text-center">สำเร็จ (N)</th>
+            <th class="py-3 px-4">Median (นาที)</th>
+            <th class="py-3 px-4">P90 (นาที)</th>
+            <th class="py-3 px-4">Mean (นาที)</th>
             <th class="py-3 px-4 text-center">SLA Compliance</th>
             <th class="py-3 px-4 text-right">ดำเนินการ</th>
           </tr>
         </thead>
         <tbody id="daily-summary-table-body" class="divide-y divide-[#e4e2e4]">
           <tr>
-            <td colspan="7" class="py-6 text-center text-[#86868b]">กำลังโหลดประวัติสรุปข้อมูลรายวัน...</td>
+            <td colspan="8" class="py-6 text-center text-[#86868b]">กำลังโหลดประวัติสรุปข้อมูลรายวัน...</td>
           </tr>
         </tbody>
       </table>
@@ -783,12 +949,28 @@
           <span class="material-symbols-outlined text-xl">timer</span>
         </div>
         <div>
-          <h2 class="font-display text-base font-semibold text-[#1b1b1d]">เกณฑ์เวลา SLA & ช่วงเวลาพัก</h2>
-          <p class="text-xs text-[#86868b]">กำหนดเกณฑ์เวลามาตรฐานการเตรียมยา และการหักลบเวลาช่วงพักเที่ยงอัตโนมัติ</p>
+          <h2 class="font-display text-base font-semibold text-[#1b1b1d]">เกณฑ์เวลา SLA, เป้าหมายเวลารอรับยา & ช่วงเวลาพัก</h2>
+          <p class="text-xs text-[#86868b]">กำหนดเป้าหมายเวลารอรับยากลับบ้าน, เกณฑ์เวลามาตรฐานการเตรียมยา และการหักลบเวลาช่วงพักเที่ยง</p>
         </div>
       </div>
 
       <form id="form-settings" onsubmit="App.handleSaveSettings(event)" class="space-y-4 text-xs">
+        <!-- Target Waiting Time setting (Prominent) -->
+        <div class="p-3.5 bg-[#fcf8fb] rounded-xl border border-[#0071e3]/30 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-sm text-[#0059b5] flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-base text-[#28cd41]">flag</span>
+              เป้าหมายเวลารอรับยา (Waiting Time Target - นาที) *
+            </label>
+            <span class="text-[11px] text-[#86868b]">นโยบายกลุ่มงาน / รพ.</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="number" id="setting-waiting-target" required min="1" max="240" value="40" class="w-32 px-3 py-2 bg-white border border-[#0071e3]/40 rounded-lg text-base font-bold text-[#0059b5] focus:outline-none focus:ring-1 focus:ring-[#0071e3]">
+            <span class="text-xs font-semibold text-[#414753]">นาที</span>
+            <span class="text-[11px] text-[#86868b]">(เช่น 20, 30, 40, 45, 60 นาที — ใช้คำนวณอัตราผ่านเกณฑ์ Within Target % ทั้งระบบ)</span>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-1">
             <label class="block font-medium text-[#414753]">เกณฑ์ปกติ (Normal Max - นาที)</label>

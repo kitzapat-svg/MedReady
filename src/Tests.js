@@ -66,8 +66,12 @@ function runAllTests() {
     assert('True Patient Waiting Time formula', truePatientWait === 11, 'Patient wait: ' + truePatientWait + ' min');
 
     // 6.1 Test Break Time Overlap Deduction
-    const lunchStart = '2026-08-30T11:45:00Z';
-    const lunchEnd = '2026-08-30T13:15:00Z'; // 90 min total elapsed
+    const lunchD1 = new Date();
+    lunchD1.setHours(11, 45, 0, 0);
+    const lunchStart = lunchD1.toISOString();
+    const lunchD2 = new Date();
+    lunchD2.setHours(13, 15, 0, 0);
+    const lunchEnd = lunchD2.toISOString(); // 90 min total elapsed
     const breakCfg = { enabled: true, start: '12:00', end: '13:00' };
     const durWithBreak = getDurationMinutes(lunchStart, lunchEnd, breakCfg);
     assert('Break Time Deduction (60 min break in 90 min)', durWithBreak === 30, 'Duration after break: ' + durWithBreak + ' min (Expected 30 min)');
@@ -193,6 +197,86 @@ function runAllTests() {
     // 15. Test Sequential Case ID Generation
     const testNextId = generateNextCaseId(SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.CASES) : null);
     assert('Generate Next Case ID Format', /^HM-\d{2}-\d{4,}$/.test(testNextId), 'Next Case ID: ' + testNextId);
+
+    // 16. Test Statistical Engine: Percentile Calculations (Linear Interpolation R-7 / NIST)
+    // 16.1 Empty and single item
+    assert('Percentile of Empty Array', calculatePercentile([], 50) === 0, 'Empty array returns 0');
+    assert('Percentile of Single Value', calculatePercentile([25], 90) === 25, 'Single item returns item');
+
+    // 16.2 Odd and Even datasets
+    const sampleOdd = [10, 20, 30, 40, 50]; // n = 5
+    assert('Percentile P50 (Odd n=5)', calculatePercentile(sampleOdd, 50) === 30, 'Median is 30');
+    assert('Percentile P25 (Odd n=5)', calculatePercentile(sampleOdd, 25) === 20, 'P25 is 20');
+    assert('Percentile P75 (Odd n=5)', calculatePercentile(sampleOdd, 75) === 40, 'P75 is 40');
+    assert('Percentile P90 (Odd n=5)', calculatePercentile(sampleOdd, 90) === 46, 'P90 is 46');
+
+    const sampleEven = [10, 20, 30, 40]; // n = 4
+    assert('Percentile P50 (Even n=4)', calculatePercentile(sampleEven, 50) === 25, 'Median is 25');
+    assert('Percentile P25 (Even n=4)', calculatePercentile(sampleEven, 25) === 17.5, 'P25 is 17.5');
+    assert('Percentile P75 (Even n=4)', calculatePercentile(sampleEven, 75) === 32.5, 'P75 is 32.5');
+
+    // 17. Test Statistical Engine: Sample SD (Bessel correction N-1)
+    assert('Sample SD single item', calculateSampleSD([15], 15) === 0, 'Single item SD is 0');
+    assert('Sample SD of [10, 20, 30]', calculateSampleSD([10, 20, 30], 20) === 10, 'SD of [10,20,30] is 10');
+
+    // 18. Test Waiting Record Validator
+    const validRec = validateWaitingRecord({
+      recordId: 'CASE-01',
+      dischargeDate: '2026-08-30',
+      ward: 'ตึกพิเศษ',
+      startTimestamp: '2026-08-30T10:00:00Z',
+      endTimestamp: '2026-08-30T10:25:00Z',
+      waitingTimeMinutes: 25
+    });
+    assert('Record Validator: Valid Record', validRec.isValid === true, 'Valid record passed');
+
+    const invalidRecNegative = validateWaitingRecord({
+      recordId: 'CASE-02',
+      dischargeDate: '2026-08-30',
+      ward: 'ตึกพิเศษ',
+      startTimestamp: '2026-08-30T10:30:00Z',
+      endTimestamp: '2026-08-30T10:20:00Z',
+      waitingTimeMinutes: -10
+    });
+    assert('Record Validator: Negative Time', invalidRecNegative.isValid === false, 'Negative waiting time rejected');
+
+    const invalidRecMissing = validateWaitingRecord({
+      recordId: 'CASE-03',
+      dischargeDate: '2026-08-30',
+      ward: 'ตึกพิเศษ',
+      startTimestamp: '',
+      endTimestamp: '2026-08-30T10:20:00Z',
+      waitingTimeMinutes: null
+    });
+    assert('Record Validator: Missing Timestamp', invalidRecMissing.isValid === false, 'Missing timestamp rejected');
+
+    // 19. Test Comprehensive calculateWaitingTimeStats & Target Change Independence
+    const waitingDataset = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60]; // 10 cases, mean = 37.5
+    const statsTarget40 = calculateWaitingTimeStats(waitingDataset, 40);
+    assert('Stats Count', statsTarget40.count === 10, 'Count is 10');
+    assert('Stats Mean', statsTarget40.mean === 37.5, 'Mean is 37.5');
+    assert('Stats Min', statsTarget40.min === 15, 'Min is 15');
+    assert('Stats Max', statsTarget40.max === 60, 'Max is 60');
+    assert('Stats Median (P50)', statsTarget40.median === 37.5, 'Median is 37.5');
+    assert('Stats Within Target 40 min count', statsTarget40.withinTargetCount === 6, '6 cases <= 40 min');
+    assert('Stats Within Target 40 min percent', statsTarget40.withinTargetPercent === 60, '60% within 40 min');
+    assert('Stats Over Target 40 min count', statsTarget40.overTargetCount === 4, '4 cases > 40 min');
+    assert('Stats Over Target 40 min percent', statsTarget40.overTargetPercent === 40, '40% over 40 min');
+
+    // Target change independence check: When target is changed to 30 min, core metrics (median, p90, mean, sd) MUST NOT CHANGE
+    const statsTarget30 = calculateWaitingTimeStats(waitingDataset, 30);
+    assert('Target Independence: Median unchanged', statsTarget30.median === statsTarget40.median, 'Median identical');
+    assert('Target Independence: P90 unchanged', statsTarget30.p90 === statsTarget40.p90, 'P90 identical');
+    assert('Target Independence: Mean unchanged', statsTarget30.mean === statsTarget40.mean, 'Mean identical');
+    assert('Target Independence: SD unchanged', statsTarget30.sd === statsTarget40.sd, 'SD identical');
+    assert('Target Change: Within Target 30 min count updated', statsTarget30.withinTargetCount === 4, '4 cases <= 30 min');
+    assert('Target Change: Within Target 30 min percent updated', statsTarget30.withinTargetPercent === 40, '40% within 30 min');
+
+    // 20. Test Regression: Average Waiting Time Consistency
+    const regWaitingTimes = [12, 18, 24, 30, 36]; // Sum = 120, Mean = 24
+    const regStats = calculateWaitingTimeStats(regWaitingTimes, 40);
+    assert('Regression: Average Waiting Time', regStats.mean === 24, 'Mean is exactly 24');
+    assert('Regression: Formatted Duration text', formatDurationThai(regStats.median) === '24 นาที', 'Thai duration formatted');
   } catch (err) {
     failed++;
     results.push({ name: 'Exception in tests', status: 'FAIL', message: err.message });

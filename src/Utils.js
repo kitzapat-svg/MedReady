@@ -318,3 +318,202 @@ function formatDateBangkok(date) {
   return Utilities.formatDate(d, CONFIG.TIMEZONE, 'yyyy-MM-dd');
 }
 
+/**
+ * Standard Percentile Method: Linear Interpolation (R-7 / NIST / Excel PERCENTILE.INC)
+ * rank = (p / 100) * (n - 1)
+ * @param {number[]} sortedArray - Array of numbers sorted in ascending order
+ * @param {number} percentile - Percentile value between 0 and 100 (e.g. 25, 50, 75, 90, 95)
+ * @returns {number}
+ */
+function calculatePercentile(sortedArray, percentile) {
+  if (!sortedArray || sortedArray.length === 0) return 0;
+  if (sortedArray.length === 1) return sortedArray[0];
+  if (percentile <= 0) return sortedArray[0];
+  if (percentile >= 100) return sortedArray[sortedArray.length - 1];
+
+  const rank = (percentile / 100) * (sortedArray.length - 1);
+  const lowerIndex = Math.floor(rank);
+  const fraction = rank - lowerIndex;
+
+  if (lowerIndex >= sortedArray.length - 1) {
+    return sortedArray[sortedArray.length - 1];
+  }
+
+  return sortedArray[lowerIndex] + fraction * (sortedArray[lowerIndex + 1] - sortedArray[lowerIndex]);
+}
+
+/**
+ * Calculates Sample Standard Deviation (Bessel's correction n-1)
+ * @param {number[]} values
+ * @param {number} mean
+ * @returns {number}
+ */
+function calculateSampleSD(values, mean) {
+  if (!values || values.length <= 1) return 0;
+  let sumSqDiff = 0;
+  for (let i = 0; i < values.length; i++) {
+    const diff = values[i] - mean;
+    sumSqDiff += diff * diff;
+  }
+  return Math.sqrt(sumSqDiff / (values.length - 1));
+}
+
+/**
+ * Validates an IPD Waiting Time Record
+ * @param {Object} record - { recordId, dischargeDate, ward, startTimestamp, endTimestamp, waitingTimeMinutes }
+ * @returns {Object} { isValid: boolean, invalidReason: string }
+ */
+function validateWaitingRecord(record) {
+  if (!record || typeof record !== 'object') {
+    return { isValid: false, invalidReason: 'Record is empty or not an object' };
+  }
+
+  const start = record.startTimestamp ? new Date(record.startTimestamp) : null;
+  const end = record.endTimestamp ? new Date(record.endTimestamp) : null;
+
+  if (!start || isNaN(start.getTime())) {
+    return { isValid: false, invalidReason: 'Missing or invalid start timestamp' };
+  }
+  if (!end || isNaN(end.getTime())) {
+    return { isValid: false, invalidReason: 'Missing or invalid end timestamp' };
+  }
+  if (end.getTime() < start.getTime()) {
+    return { isValid: false, invalidReason: 'End timestamp is before start timestamp' };
+  }
+
+  const mins = Number(record.waitingTimeMinutes);
+  if (isNaN(mins) || !isFinite(mins) || mins < 0) {
+    return { isValid: false, invalidReason: 'Invalid or negative waiting time minutes' };
+  }
+
+  return { isValid: true, invalidReason: '' };
+}
+
+/**
+ * Reusable Waiting Time Statistics Engine
+ * Calculates count, mean, median (P50), SD, min, p25, p75, iqr, p90, p95, max,
+ * targetMinutes, withinTargetCount, withinTargetPercent, overTargetCount, overTargetPercent,
+ * and IQR outlier boundaries.
+ * 
+ * @param {number[]} rawWaitingTimes - Array of raw waiting times in minutes (unrounded)
+ * @param {number|string} [targetMinutes=40] - Target waiting time in minutes
+ * @returns {Object} Statistics result object
+ */
+function calculateWaitingTimeStats(rawWaitingTimes, targetMinutes) {
+  const target = (targetMinutes !== undefined && targetMinutes !== null && !isNaN(Number(targetMinutes)) && Number(targetMinutes) > 0)
+    ? Number(targetMinutes)
+    : 40;
+
+  // Filter valid numbers: must be finite, non-null, >= 0
+  const validTimes = [];
+  let invalidCount = 0;
+
+  if (Array.isArray(rawWaitingTimes)) {
+    for (let i = 0; i < rawWaitingTimes.length; i++) {
+      const val = rawWaitingTimes[i];
+      if (val !== null && val !== undefined && val !== '' && !isNaN(Number(val)) && isFinite(Number(val)) && Number(val) >= 0) {
+        validTimes.push(Number(val));
+      } else {
+        invalidCount++;
+      }
+    }
+  }
+
+  const count = validTimes.length;
+
+  if (count === 0) {
+    return {
+      count: 0,
+      mean: 0,
+      median: 0,
+      sd: 0,
+      min: 0,
+      p25: 0,
+      p75: 0,
+      iqr: 0,
+      p90: 0,
+      p95: 0,
+      max: 0,
+      targetMinutes: target,
+      withinTargetCount: 0,
+      withinTargetPercent: 0,
+      overTargetCount: 0,
+      overTargetPercent: 0,
+      iqrLowerThreshold: 0,
+      iqrUpperThreshold: 0,
+      outlierCount: 0,
+      invalidCount: invalidCount
+    };
+  }
+
+  // Sort ascending (without mutating input)
+  const sorted = validTimes.slice().sort((a, b) => a - b);
+
+  // Mean
+  let sum = 0;
+  let withinCount = 0;
+  for (let i = 0; i < count; i++) {
+    sum += sorted[i];
+    if (sorted[i] <= target) {
+      withinCount++;
+    }
+  }
+  const mean = sum / count;
+
+  // Sample SD
+  const sd = calculateSampleSD(sorted, mean);
+
+  // Min / Max
+  const min = sorted[0];
+  const max = sorted[count - 1];
+
+  // Percentiles (R-7 standard)
+  const p25 = calculatePercentile(sorted, 25);
+  const median = calculatePercentile(sorted, 50);
+  const p75 = calculatePercentile(sorted, 75);
+  const p90 = calculatePercentile(sorted, 90);
+  const p95 = calculatePercentile(sorted, 95);
+
+  const iqr = p75 - p25;
+  const iqrLowerThreshold = p25 - 1.5 * iqr;
+  const iqrUpperThreshold = p75 + 1.5 * iqr;
+
+  let outlierCount = 0;
+  for (let i = 0; i < count; i++) {
+    if (sorted[i] < iqrLowerThreshold || sorted[i] > iqrUpperThreshold) {
+      outlierCount++;
+    }
+  }
+
+  const overCount = count - withinCount;
+  const withinPercent = count > 0 ? Math.round((withinCount / count) * 1000) / 10 : 0;
+  const overPercent = count > 0 ? Math.round((overCount / count) * 1000) / 10 : 0;
+
+  return {
+    count: count,
+    mean: Math.round(mean * 10) / 10,
+    rawMean: mean,
+    median: Math.round(median * 10) / 10,
+    rawMedian: median,
+    sd: Math.round(sd * 10) / 10,
+    rawSd: sd,
+    min: Math.round(min * 10) / 10,
+    p25: Math.round(p25 * 10) / 10,
+    p75: Math.round(p75 * 10) / 10,
+    iqr: Math.round(iqr * 10) / 10,
+    p90: Math.round(p90 * 10) / 10,
+    p95: Math.round(p95 * 10) / 10,
+    max: Math.round(max * 10) / 10,
+    targetMinutes: target,
+    withinTargetCount: withinCount,
+    withinTargetPercent: withinPercent,
+    overTargetCount: overCount,
+    overTargetPercent: overPercent,
+    iqrLowerThreshold: Math.round(iqrLowerThreshold * 10) / 10,
+    iqrUpperThreshold: Math.round(iqrUpperThreshold * 10) / 10,
+    outlierCount: outlierCount,
+    invalidCount: invalidCount
+  };
+}
+
+
