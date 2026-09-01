@@ -2537,7 +2537,21 @@ const App = {
       .withSuccessHandler(function(res) {
         if (res && res.success && res.data) {
           App.dailyTriggerEnabled = !!res.data.isEnabled;
-          if (App.dailyTriggerEnabled) {
+          if (res.data.requiresOwnerSetup) {
+            if (badge) {
+              badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-[#0071e3]/10 text-[#0059b5] flex items-center gap-1.5';
+              badge.innerHTML = '<span class="material-symbols-outlined text-xs">info</span> ตั้งค่าผ่าน Apps Script Console';
+            }
+            if (desc) {
+              desc.innerHTML = 'เนื่องจากนโยบายความปลอดภัยของ Google การตั้งค่า Time-driven Trigger ของโปรเจกต์ ต้องดำเนินการโดยเจ้าของโปรเจกต์ (Script Owner) ผ่าน Apps Script Editor: เลือกฟังก์ชัน <code>setupDailyAutomationTrigger</code> แล้วกด <strong>Run</strong>';
+            }
+            if (btn) {
+              btn.className = 'px-4 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5';
+            }
+            if (btnText) {
+              btnText.textContent = 'ลองเปิดใช้งาน Trigger';
+            }
+          } else if (App.dailyTriggerEnabled) {
             if (badge) {
               badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1.5';
               badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#28cd41] animate-pulse"></span> เปิดใช้งานอยู่ (Active)';

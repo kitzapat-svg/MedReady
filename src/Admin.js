@@ -672,20 +672,29 @@ function setPrimarySpreadsheetId(spreadsheetId) {
 function apiGetDailyTriggerStatus() {
   try {
     const user = requireAuthorization([CONFIG.ROLES.SUPER_ADMIN, CONFIG.ROLES.PHARMACY]);
-    const triggers = ScriptApp.getProjectTriggers();
     let isEnabled = false;
     let triggerDetails = null;
 
-    for (let i = 0; i < triggers.length; i++) {
-      if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
-        isEnabled = true;
-        triggerDetails = {
-          handlerFunction: triggers[i].getHandlerFunction(),
-          triggerSource: 'CLOCK',
-          scheduledTime: '23:55 น. ทุกวัน'
-        };
-        break;
+    try {
+      const triggers = ScriptApp.getProjectTriggers();
+      for (let i = 0; i < triggers.length; i++) {
+        if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
+          isEnabled = true;
+          triggerDetails = {
+            handlerFunction: triggers[i].getHandlerFunction(),
+            triggerSource: 'CLOCK',
+            scheduledTime: '23:55 น. ทุกวัน'
+          };
+          break;
+        }
       }
+    } catch (permErr) {
+      // Handled if USER_ACCESSING Web App sandbox restricts client-side trigger enumeration
+      return successResponse({
+        isEnabled: false,
+        requiresOwnerSetup: true,
+        permissionNotice: permErr.message
+      });
     }
 
     return successResponse({
@@ -705,31 +714,38 @@ function apiToggleDailyTrigger(enable) {
     const admin = requireAuthorization([CONFIG.ROLES.SUPER_ADMIN]);
     const shouldEnable = enable === true || String(enable).toLowerCase() === 'true';
 
-    if (shouldEnable) {
-      const res = setupDailyAutomationTrigger();
-      logTimelineEvent({
-        caseId: '-',
-        event: 'TRIGGER_ENABLED',
-        actor: admin.name + ' (' + admin.email + ')',
-        details: 'เปิดใช้งาน Daily Automation Trigger (23:55 น.)'
-      });
-      return successResponse({ isEnabled: true }, res.message || 'เปิดใช้งาน Daily Trigger สำเร็จ');
-    } else {
-      const triggers = ScriptApp.getProjectTriggers();
-      let deleted = 0;
-      for (let i = 0; i < triggers.length; i++) {
-        if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
-          ScriptApp.deleteTrigger(triggers[i]);
-          deleted++;
+    try {
+      if (shouldEnable) {
+        const res = setupDailyAutomationTrigger();
+        logTimelineEvent({
+          caseId: '-',
+          event: 'TRIGGER_ENABLED',
+          actor: admin.name + ' (' + admin.email + ')',
+          details: 'เปิดใช้งาน Daily Automation Trigger (23:55 น.)'
+        });
+        return successResponse({ isEnabled: true }, res.message || 'เปิดใช้งาน Daily Trigger สำเร็จ');
+      } else {
+        const triggers = ScriptApp.getProjectTriggers();
+        let deleted = 0;
+        for (let i = 0; i < triggers.length; i++) {
+          if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
+            ScriptApp.deleteTrigger(triggers[i]);
+            deleted++;
+          }
         }
+        logTimelineEvent({
+          caseId: '-',
+          event: 'TRIGGER_DISABLED',
+          actor: admin.name + ' (' + admin.email + ')',
+          details: 'ปิดการใช้งาน Daily Automation Trigger'
+        });
+        return successResponse({ isEnabled: false }, 'ปิดการใช้งาน Daily Trigger สำเร็จ (' + deleted + ' trigger)');
       }
-      logTimelineEvent({
-        caseId: '-',
-        event: 'TRIGGER_DISABLED',
-        actor: admin.name + ' (' + admin.email + ')',
-        details: 'ปิดการใช้งาน Daily Automation Trigger'
-      });
-      return successResponse({ isEnabled: false }, 'ปิดการใช้งาน Daily Trigger สำเร็จ (' + deleted + ' trigger)');
+    } catch (permErr) {
+      return errorResponse(
+        'การจัดการ Project Trigger ต้องทำโดยเจ้าของโปรเจกต์ (Script Owner) ผ่านหน้า Google Apps Script Editor โดยตรง กรุณาเปิด Apps Script แล้วเลือกฟังก์ชัน setupDailyAutomationTrigger และกด Run',
+        'OWNER_PERMISSION_REQUIRED'
+      );
     }
   } catch (err) {
     return errorResponse(err.message, 'TOGGLE_TRIGGER_ERROR');
