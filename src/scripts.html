@@ -2502,6 +2502,7 @@ const App = {
    * Loads SLA & Break settings values into form inputs
    */
   loadAdminSettings: function() {
+    this.loadDailyTriggerStatus();
     google.script.run
       .withSuccessHandler(function(settings) {
         if (settings) {
@@ -2519,6 +2520,79 @@ const App = {
         }
       })
       .apiGetSettingsPublic();
+  },
+
+  dailyTriggerEnabled: false,
+
+  /**
+   * Loads Daily Automation Trigger live status
+   */
+  loadDailyTriggerStatus: function() {
+    const badge = document.getElementById('trigger-status-badge');
+    const desc = document.getElementById('trigger-status-desc');
+    const btn = document.getElementById('btn-toggle-daily-trigger');
+    const btnText = document.getElementById('btn-toggle-trigger-text');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success && res.data) {
+          App.dailyTriggerEnabled = !!res.data.isEnabled;
+          if (App.dailyTriggerEnabled) {
+            if (badge) {
+              badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1.5';
+              badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#28cd41] animate-pulse"></span> เปิดใช้งานอยู่ (Active)';
+            }
+            if (desc) {
+              desc.innerHTML = 'ระบบตั้งค่า Trigger อัตโนมัติเรียบร้อยแล้ว: จะประมวลผลสรุปยอดและจัดเก็บคลังประวัติทุกวันเวลา <strong>23:55 น.</strong>';
+            }
+            if (btn) {
+              btn.className = 'px-4 py-2 bg-white border border-[#e4e2e4] hover:bg-[#ffdad6] text-[#ba1a1a] rounded-lg text-xs font-medium transition-colors shadow-xs flex items-center gap-1.5';
+            }
+            if (btnText) {
+              btnText.textContent = 'ปิดการใช้งาน Trigger';
+            }
+          } else {
+            if (badge) {
+              badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-[#ff9f0a]/10 text-[#ff9f0a] flex items-center gap-1.5';
+              badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#ff9f0a]"></span> ยังไม่ได้เปิดใช้งาน (Inactive)';
+            }
+            if (desc) {
+              desc.innerHTML = 'ขณะนี้ยังไม่มี Script Trigger ที่รันเวลา 23:55 น. ท่านสามารถกดปุ่มเปิดใช้งานเพื่อตั้งค่าอัตโนมัติได้ทันที';
+            }
+            if (btn) {
+              btn.className = 'px-4 py-2 bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5';
+            }
+            if (btnText) {
+              btnText.textContent = 'เปิดใช้งาน Trigger 23:55 น.';
+            }
+          }
+        }
+      })
+      .apiGetDailyTriggerStatus();
+  },
+
+  /**
+   * Toggles Daily Automation Trigger on/off
+   */
+  handleToggleDailyTrigger: function() {
+    const nextState = !this.dailyTriggerEnabled;
+    const actionLabel = nextState ? 'เปิดใช้งาน' : 'ปิดการใช้งาน';
+    if (!confirm(`คุณต้องการ${actionLabel}ระบบสรุปยอด & จัดเก็บอัตโนมัติ (เวลา 23:55 น. ของทุกวัน) ใช่หรือไม่?`)) return;
+
+    this.showToast(`กำลัง${actionLabel} Daily Trigger...`, 'info');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          App.showToast(res.message || `${actionLabel} Daily Trigger สำเร็จ`, 'success');
+          App.loadDailyTriggerStatus();
+        } else {
+          App.showToast('เกิดข้อผิดพลาด: ' + (res ? res.error : 'Unknown error'), 'error');
+        }
+      })
+      .withFailureHandler(function(err) {
+        App.showToast(`ไม่สามารถ${actionLabel}: ` + err.message, 'error');
+      })
+      .apiToggleDailyTrigger(nextState);
   },
 
   handleSaveSettings: function(e) {

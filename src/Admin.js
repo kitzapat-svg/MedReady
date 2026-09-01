@@ -665,3 +665,73 @@ function setPrimarySpreadsheetId(spreadsheetId) {
     url: ss.getUrl()
   };
 }
+
+/**
+ * Get Daily Automation Trigger status
+ */
+function apiGetDailyTriggerStatus() {
+  try {
+    const user = requireAuthorization([CONFIG.ROLES.SUPER_ADMIN, CONFIG.ROLES.PHARMACY]);
+    const triggers = ScriptApp.getProjectTriggers();
+    let isEnabled = false;
+    let triggerDetails = null;
+
+    for (let i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
+        isEnabled = true;
+        triggerDetails = {
+          handlerFunction: triggers[i].getHandlerFunction(),
+          triggerSource: 'CLOCK',
+          scheduledTime: '23:55 น. ทุกวัน'
+        };
+        break;
+      }
+    }
+
+    return successResponse({
+      isEnabled: isEnabled,
+      triggerDetails: triggerDetails
+    });
+  } catch (err) {
+    return errorResponse(err.message, 'GET_TRIGGER_STATUS_ERROR');
+  }
+}
+
+/**
+ * Enable or Disable Daily Automation Trigger
+ */
+function apiToggleDailyTrigger(enable) {
+  try {
+    const admin = requireAuthorization([CONFIG.ROLES.SUPER_ADMIN]);
+    const shouldEnable = enable === true || String(enable).toLowerCase() === 'true';
+
+    if (shouldEnable) {
+      const res = setupDailyAutomationTrigger();
+      logTimelineEvent({
+        caseId: '-',
+        event: 'TRIGGER_ENABLED',
+        actor: admin.name + ' (' + admin.email + ')',
+        details: 'เปิดใช้งาน Daily Automation Trigger (23:55 น.)'
+      });
+      return successResponse({ isEnabled: true }, res.message || 'เปิดใช้งาน Daily Trigger สำเร็จ');
+    } else {
+      const triggers = ScriptApp.getProjectTriggers();
+      let deleted = 0;
+      for (let i = 0; i < triggers.length; i++) {
+        if (triggers[i].getHandlerFunction() === 'triggerDailyArchivingAndSummary') {
+          ScriptApp.deleteTrigger(triggers[i]);
+          deleted++;
+        }
+      }
+      logTimelineEvent({
+        caseId: '-',
+        event: 'TRIGGER_DISABLED',
+        actor: admin.name + ' (' + admin.email + ')',
+        details: 'ปิดการใช้งาน Daily Automation Trigger'
+      });
+      return successResponse({ isEnabled: false }, 'ปิดการใช้งาน Daily Trigger สำเร็จ (' + deleted + ' trigger)');
+    }
+  } catch (err) {
+    return errorResponse(err.message, 'TOGGLE_TRIGGER_ERROR');
+  }
+}
