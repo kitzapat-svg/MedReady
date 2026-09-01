@@ -23,15 +23,20 @@ const App = {
    * Application Entry Point
    */
   init: function() {
-    // Show Google Sign-In Landing Card first on initial visit
-    this.showLogin();
+    // If user has already logged in previously on this browser, stay logged in across Refresh (F5)
+    if (localStorage.getItem('medready_logged_in') === 'true') {
+      this.checkAuth();
+    } else {
+      // First visit / Logged out: show Google Sign-In landing card
+      this.showLogin();
+    }
   },
 
   /**
-   * Check Auth & Initialize Role Views
+   * Check Auth & Initialize Role Views seamlessly
    */
   checkAuth: function() {
-    this.handleGoogleSignIn();
+    this.handleGoogleSignIn(true);
   },
 
   /**
@@ -55,9 +60,10 @@ const App = {
   },
 
   /**
-   * Handle Click on "Sign in with Google" Button
+   * Handle Click on "Sign in with Google" Button / Seamless Auth Check
+   * @param {boolean} [isSilentRefresh=false]
    */
-  handleGoogleSignIn: function() {
+  handleGoogleSignIn: function(isSilentRefresh) {
     this.hideAllViews();
     const loadingView = document.getElementById('view-auth-loading');
     if (loadingView) loadingView.classList.remove('hidden');
@@ -77,12 +83,20 @@ const App = {
         }
 
         if (res && res.authenticated && res.active && res.status !== 'ACCESS_DENIED' && res.status !== 'ACCOUNT_DEACTIVATED') {
+          // Remember logged-in session across page refreshes (F5)
+          localStorage.setItem('medready_logged_in', 'true');
           App.currentUser = res;
           App.setupUserInterface();
         } else if (res && (!res.active || res.status === 'ACCESS_DENIED' || res.status === 'ACCOUNT_DEACTIVATED')) {
+          localStorage.removeItem('medready_logged_in');
           App.showAuthDenied(res);
         } else {
-          // If unauthenticated or needs account selection
+          // Unauthenticated or needs account selection
+          localStorage.removeItem('medready_logged_in');
+          if (isSilentRefresh) {
+            App.showLogin(res);
+            return;
+          }
           const canonicalUrl = App.webAppUrl || 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec';
           const targetUrl = 'https://accounts.google.com/AccountChooser?service=wise&continue=' + encodeURIComponent(canonicalUrl);
           try {
@@ -95,6 +109,7 @@ const App = {
         }
       })
       .withFailureHandler(function(err) {
+        localStorage.removeItem('medready_logged_in');
         App.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message, 'error');
         App.showAuthDenied({ message: err.message, email: '-' });
       })
@@ -105,6 +120,7 @@ const App = {
    * Google Logout Action
    */
   handleGoogleLogout: function() {
+    localStorage.removeItem('medready_logged_in');
     const targetUrl = 'https://accounts.google.com/Logout';
     try {
       if (window.top && window.top !== window) {
