@@ -344,7 +344,7 @@
         <span id="send-ward-value">ตึกพิเศษ</span>
         <span class="text-xs text-[#86868b] flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span> ล็อกตามสิทธิ์</span>
       </div>
-      <select id="send-ward-select" class="hidden w-full px-3.5 py-2.5 bg-white border border-[#e4e2e4] rounded-lg text-sm focus:outline-none focus:border-[#0071e3]">
+      <select id="send-ward-select" class="hidden w-full pl-3.5 pr-8 py-2.5 bg-white border border-[#e4e2e4] rounded-lg text-sm focus:outline-none focus:border-[#0071e3] cursor-pointer">
       </select>
     </div>
 
@@ -455,7 +455,7 @@
 
       <!-- Quick Period Selector -->
       <div class="flex items-center gap-2">
-        <select id="analytics-period-select" onchange="App.onAnalyticsPeriodSelect(this.value)" class="bg-[#f0edef] border border-[#e4e2e4] rounded-lg px-3 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:ring-1 focus:ring-[#0071e3] font-medium cursor-pointer">
+        <select id="analytics-period-select" onchange="App.onAnalyticsPeriodSelect(this.value)" class="bg-[#f0edef] border border-[#e4e2e4] rounded-lg pl-3 pr-8 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:ring-1 focus:ring-[#0071e3] font-medium cursor-pointer">
           <option value="">-- เลือกตามช่วงเวลา (ไตรมาส / ปีงบ) --</option>
           <optgroup label="ไตรมาส (ปีงบประมาณ)">
             <option value="FY_Q1">ไตรมาส 1 ปีงบ (1 ต.ค. - 31 ธ.ค.)</option>
@@ -481,7 +481,7 @@
         <!-- Ward Filter -->
         <div class="flex items-center gap-1.5">
           <span class="text-xs text-[#5d5e60] font-medium">หอผู้ป่วย:</span>
-          <select id="analytics-ward-filter" onchange="App.onAnalyticsFilterChanged()" class="bg-white border border-[#e4e2e4] rounded-lg px-2.5 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+          <select id="analytics-ward-filter" onchange="App.onAnalyticsFilterChanged()" class="bg-white border border-[#e4e2e4] rounded-lg pl-2.5 pr-8 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3] min-w-[110px] cursor-pointer">
             <option value="ALL">ทุก Ward</option>
           </select>
         </div>
@@ -489,7 +489,7 @@
         <!-- Shift Filter -->
         <div class="flex items-center gap-1.5">
           <span class="text-xs text-[#5d5e60] font-medium">เวรปฏิบัติงาน:</span>
-          <select id="analytics-shift-filter" onchange="App.onAnalyticsFilterChanged()" class="bg-white border border-[#e4e2e4] rounded-lg px-2.5 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3]">
+          <select id="analytics-shift-filter" onchange="App.onAnalyticsFilterChanged()" class="bg-white border border-[#e4e2e4] rounded-lg pl-2.5 pr-8 py-1.5 text-xs text-[#1b1b1d] focus:outline-none focus:border-[#0071e3] cursor-pointer">
             <option value="ALL">ทุกเวร (24 ชม.)</option>
             <option value="เวรเช้า (08:00 - 16:00)">เวรเช้า (08:00 - 16:00)</option>
             <option value="เวรบ่าย (16:00 - 24:00)">เวรบ่าย (16:00 - 24:00)</option>
@@ -503,7 +503,7 @@
             <span class="material-symbols-outlined text-sm text-[#28cd41]">flag</span>
             เป้าหมาย (Target):
           </span>
-          <select id="analytics-target-select" onchange="App.onAnalyticsTargetChanged(this.value)" class="bg-white border border-[#e4e2e4] rounded px-2 py-0.5 text-xs font-bold text-[#0059b5] focus:outline-none">
+          <select id="analytics-target-select" onchange="App.onAnalyticsTargetChanged(this.value)" class="bg-white border border-[#e4e2e4] rounded pl-2.5 pr-7 py-1 text-xs font-bold text-[#0059b5] focus:outline-none min-w-[85px] cursor-pointer">
             <option value="20">20 นาที</option>
             <option value="30">30 นาที</option>
             <option value="40" selected>40 นาที</option>
@@ -1273,7 +1273,7 @@
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
           <label class="block font-medium text-[#414753]">บทบาท (Role) *</label>
-          <select id="modal-user-role" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm">
+          <select id="modal-user-role" class="w-full pl-3 pr-8 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm cursor-pointer">
             <option value="WARD">WARD (เจ้าหน้าที่ Ward)</option>
             <option value="PHARMACY">PHARMACY (ห้องยา)</option>
             <option value="SUPER_ADMIN">SUPER_ADMIN (ผู้ดูแลระบบ)</option>
@@ -1282,7 +1282,7 @@
         
         <div class="space-y-1">
           <label class="block font-medium text-[#414753]">Ward Scope *</label>
-          <select id="modal-user-ward" class="w-full px-3 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm">
+          <select id="modal-user-ward" class="w-full pl-3 pr-8 py-2 bg-white border border-[#e4e2e4] rounded-lg text-sm cursor-pointer">
             <!-- Dynamically populated -->
             <option value="ตึกพิเศษ">ตึกพิเศษ</option>
             <option value="ALL">ALL (ทุก Ward)</option>
