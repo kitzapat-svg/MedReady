@@ -193,23 +193,26 @@ const App = {
       const wardScopeBadge = document.getElementById('ward-scope-badge');
       if (wardScopeBadge) wardScopeBadge.textContent = user.wardScope || 'ตึกพิเศษ';
       
-      const sendWardVal = document.getElementById('send-ward-value');
-      if (sendWardVal) sendWardVal.textContent = user.wardScope || 'ตึกพิเศษ';
-
+      this.setupSendPatientWardField();
       this.navigate('ward-dashboard');
     } else if (user.role === 'PHARMACY') {
       document.querySelectorAll('.nav-ward-only').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-admin-only').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-pharmacy-only').forEach(el => el.classList.remove('hidden'));
 
+      this.setupSendPatientWardField();
       this.navigate('pharmacy-dashboard');
     } else if (user.role === 'SUPER_ADMIN') {
       document.querySelectorAll('.nav-ward-only').forEach(el => el.classList.remove('hidden'));
       document.querySelectorAll('.nav-pharmacy-only').forEach(el => el.classList.remove('hidden'));
       document.querySelectorAll('.nav-admin-only').forEach(el => el.classList.remove('hidden'));
 
+      this.setupSendPatientWardField();
       this.navigate('pharmacy-dashboard');
     }
+
+    // Load initial settings & ward list to populate dropdowns
+    this.loadInitialWardOptions();
 
     // Start background polling (every 15 seconds)
     this.startPolling(15000);
@@ -301,6 +304,7 @@ const App = {
 
       // Screen-specific triggers
       if (screenId === 'send-patient') {
+        this.setupSendPatientWardField();
         this.loadIpdSyncedOrders();
       } else if (screenId === 'ward-dashboard') {
         this.renderWardDashboard();
@@ -456,7 +460,7 @@ const App = {
         ? `<button type="button" disabled class="px-3.5 py-1.5 text-xs bg-[#f0edef] text-[#86868b] rounded-lg font-medium cursor-not-allowed flex items-center gap-1">
              <span class="material-symbols-outlined text-xs">done_all</span> ส่งแล้ว
            </button>`
-        : `<button id="ipd-btn-${order.rawAn}" type="button" onclick="App.selectIpdOrder('${order.rawAn}', '${order.roomBed}')" 
+        : `<button id="ipd-btn-${order.rawAn}" type="button" onclick="App.selectIpdOrder('${order.rawAn}', '${order.roomBed}', '${order.ward || ''}')" 
              class="px-3.5 py-1.5 text-xs bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg font-medium flex items-center gap-1 shadow-sm transition-all">
              <span class="material-symbols-outlined text-xs">arrow_forward</span> ดึงข้อมูลส่งเคส
            </button>`;
@@ -480,7 +484,7 @@ const App = {
           <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[#414753] pt-0.5">
             <div class="flex items-center gap-1.5 font-medium text-[#1b1b1d]">
               <span class="text-[#86868b]">•</span>
-              <span class="text-[#0059b5] font-semibold">${order.roomBed || 'ไม่ระบุห้อง'}</span>
+              <span class="text-[#0059b5] font-semibold">${order.ward ? order.ward + ' / ' : ''}${order.roomBed || 'ไม่ระบุห้อง'}</span>
             </div>
             ${displayTime ? `
               <div class="flex items-center gap-1 text-[#86868b]">
@@ -503,10 +507,11 @@ const App = {
   /**
    * One-click selection from IPD Intranet Synced list into the Send Patient form
    */
-  selectIpdOrder: function(rawAn, roomBed) {
+  selectIpdOrder: function(rawAn, roomBed, ward) {
     const anInput = document.getElementById('send-an');
     const roomInput = document.getElementById('send-room-bed');
     const badge = document.getElementById('selected-from-sync-badge');
+    const selectEl = document.getElementById('send-ward-select');
 
     if (anInput) {
       anInput.value = rawAn;
@@ -514,6 +519,14 @@ const App = {
     }
     if (roomInput) {
       roomInput.value = roomBed || '';
+    }
+    if (ward && selectEl && !selectEl.classList.contains('hidden')) {
+      for (let i = 0; i < selectEl.options.length; i++) {
+        if (selectEl.options[i].value === ward || ward.includes(selectEl.options[i].value) || selectEl.options[i].value.includes(ward)) {
+          selectEl.selectedIndex = i;
+          break;
+        }
+      }
     }
     if (badge) {
       badge.classList.remove('hidden');
@@ -530,7 +543,7 @@ const App = {
     if (card) {
     }
 
-    this.showToast(`เลือกข้อมูล AN: ${rawAn} (ห้อง ${roomBed}) แล้ว`, 'success');
+    this.showToast(`เลือกข้อมูล AN: ${rawAn} (${ward ? ward + ' ' : ''}ห้อง ${roomBed}) แล้ว`, 'success');
   },
 
   /**
@@ -572,6 +585,7 @@ const App = {
     const roomInput = document.getElementById('send-room-bed');
     const apptInputs = document.getElementsByName('appointmentStatus');
     const btn = document.getElementById('btn-submit-case');
+    const selectEl = document.getElementById('send-ward-select');
 
     let apptStatus = 'นัดหมายแล้ว';
     for (let r of apptInputs) {
@@ -581,10 +595,17 @@ const App = {
       }
     }
 
+    const user = this.currentUser;
+    const isLockedToSingleWard = user && user.role === 'WARD' && user.wardScope && user.wardScope !== 'ALL';
+    let chosenWard = isLockedToSingleWard
+      ? user.wardScope
+      : (selectEl && !selectEl.classList.contains('hidden') && selectEl.value ? selectEl.value : (user && user.wardScope && user.wardScope !== 'ALL' ? user.wardScope : 'ตึกพิเศษ'));
+
     const payload = {
       an: anInput.value.trim(),
       roomBed: roomInput.value.trim(),
-      appointmentStatus: apptStatus
+      appointmentStatus: apptStatus,
+      wardScope: chosenWard
     };
 
     if (!payload.an || !payload.roomBed) {
@@ -2596,6 +2617,65 @@ const App = {
   },
 
   /**
+   * Loads initial ward options and system settings on app startup
+   */
+  loadInitialWardOptions: function() {
+    google.script.run
+      .withSuccessHandler(function(settings) {
+        if (settings && settings.WARD_OPTIONS) {
+          const wardNames = settings.WARD_OPTIONS.split(',').map(w => w.trim()).filter(Boolean);
+          if (wardNames.length > 0) {
+            App.adminWards = wardNames.map(w => ({ name: w }));
+            App.populateAllWardDropdowns(wardNames);
+          }
+        }
+      })
+      .apiGetSettingsPublic();
+  },
+
+  /**
+   * Sets up the Ward selection / display on the Send Patient page
+   */
+  setupSendPatientWardField: function() {
+    const user = this.currentUser;
+    if (!user) return;
+
+    const displayEl = document.getElementById('send-ward-display');
+    const selectEl = document.getElementById('send-ward-select');
+    const valEl = document.getElementById('send-ward-value');
+    if (!displayEl || !selectEl) return;
+
+    // A user is locked to a single ward ONLY if their role is WARD and wardScope is set and NOT 'ALL'
+    const isLockedToSingleWard = user.role === 'WARD' && user.wardScope && user.wardScope !== 'ALL';
+
+    if (isLockedToSingleWard) {
+      displayEl.classList.remove('hidden');
+      selectEl.classList.add('hidden');
+      if (valEl) valEl.textContent = user.wardScope;
+    } else {
+      // User has access to ALL wards (e.g. wardScope is 'ALL', SUPER_ADMIN, or PHARMACY)
+      displayEl.classList.add('hidden');
+      selectEl.classList.remove('hidden');
+
+      // Populate select options
+      const wards = (App.adminWards && App.adminWards.length > 0)
+        ? App.adminWards.map(w => w.name).filter(w => w !== 'ALL')
+        : ['ตึกพิเศษ', 'Ward 1', 'Ward 2', 'Ward 3'];
+
+      const currentVal = selectEl.value;
+      let optHtml = '';
+      wards.forEach(w => {
+        optHtml += `<option value="${w}">${w}</option>`;
+      });
+      selectEl.innerHTML = optHtml;
+
+      if (currentVal && wards.includes(currentVal)) {
+        selectEl.value = currentVal;
+      }
+    }
+  },
+
+  /**
    * Populates all Ward Dropdowns dynamically across the whole application
    */
   populateAllWardDropdowns: function(wardNames) {
@@ -2631,6 +2711,9 @@ const App = {
 
     // 3. User Modal Dropdown
     this.populateWardDropdownForModal();
+
+    // 4. Send Patient Ward Field
+    this.setupSendPatientWardField();
   },
 
   populateWardDropdownForModal: function(selectedWard) {

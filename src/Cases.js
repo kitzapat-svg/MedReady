@@ -19,9 +19,9 @@ function apiCreateCase(params) {
     const cleanAn = String(params.an).trim().replace(/[^0-9a-zA-Z]/g, '');
     const cleanRoomBed = String(params.roomBed).trim();
     const apptStatus = params.appointmentStatus === 'นัดหมายแล้ว' ? 'นัดหมายแล้ว' : 'ไม่มีนัด';
-    const wardScope = (user.role === CONFIG.ROLES.SUPER_ADMIN && params.wardScope) 
-      ? params.wardScope 
-      : (user.wardScope !== 'ALL' ? user.wardScope : (params.wardScope || 'ตึกพิเศษ'));
+    const wardScope = (user.role === CONFIG.ROLES.WARD && user.wardScope && user.wardScope !== 'ALL')
+      ? user.wardScope 
+      : (params.wardScope || 'ตึกพิเศษ');
 
     return withLock(function() {
       const ss = getSpreadsheet();
