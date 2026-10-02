@@ -12,7 +12,10 @@ pnpm-lock.yaml
 .env
 .env.*
 !.env.example
-.ipd_sync/
+.ipd_sync/service_account.json
+.ipd_sync/sync_status.json
+.ipd_sync/*.tmp
+.ipd_sync/__pycache__/
 *.json.bak
 service_account.json
 

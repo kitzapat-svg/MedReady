@@ -1,0 +1,10 @@
+{
+  "ipd_base_url": "http://192.168.0.197:5000",
+  "sheet_id": "1-OOO_cdun4sTTP4Ug80OfWqJqvqnlkLg2C87zVw7OwE",
+  "worksheet_name": "IPD_Orders",
+  "target_wards": [
+    "ตึกพิเศษ"
+  ],
+  "all_wards": false,
+  "only_hme": true
+}
