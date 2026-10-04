@@ -62,3 +62,4 @@ Refer to [`SETUP.md`](SETUP.md) for full instructions on setting up Google Sheet
 - [Design Language & UX Specifications (`UX.md`)](UX.md)
 - [Development Roadmap (`ROADMAP.md`)](ROADMAP.md)
 - [Handoff Guide (`HANDOFF.md`)](HANDOFF.md)
+- [Email Login & Authorization Analysis (`AUTH_LOGIN_ANALYSIS.md`)](AUTH_LOGIN_ANALYSIS.md)
