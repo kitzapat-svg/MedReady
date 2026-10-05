@@ -81,8 +81,8 @@ function runAllTests() {
     const syncTestOrders = [
       ['ใบสั่งยาใหม่', '6912344438', 'ตึกพิเศษ', 'EX05', '2026-08-30', '10:15', 'HME', new Date().toISOString()]
     ];
-    const syncRes = apiSyncIpdOrders(syncTestOrders);
-    assert('API Sync IPD Orders', syncRes && syncRes.success === true, 'apiSyncIpdOrders succeeds');
+    const syncRes = apiSyncIpdOrders_(syncTestOrders);
+    assert('API Sync IPD Orders', syncRes && syncRes.success === true, 'apiSyncIpdOrders_ succeeds');
     
     const getSyncedRes = apiGetIpdSyncedOrders('ตึกพิเศษ');
     assert('API Get Synced IPD Orders', getSyncedRes && getSyncedRes.success === true && getSyncedRes.data.orders.length > 0, 'Found ' + (getSyncedRes.data ? getSyncedRes.data.orders.length : 0) + ' orders');
@@ -190,9 +190,9 @@ function runAllTests() {
     assert('API Set Default Ward', setDefaultRes && setDefaultRes.success === true, 'apiSetDefaultWard succeeds');
 
     // 14. Test Daily Case Archiving & Retention Engine
-    assert('Archive Completed Cases Function Defined', typeof archiveCompletedCases === 'function', 'archiveCompletedCases is defined');
-    const autoArchiveDryRun = archiveCompletedCases('1999-01-01');
-    assert('Archive Completed Cases Dry Run', autoArchiveDryRun && typeof autoArchiveDryRun.archivedCount === 'number', 'archiveCompletedCases returned valid object');
+    assert('Archive Completed Cases Function Defined', typeof archiveCompletedCases_ === 'function', 'archiveCompletedCases_ is defined');
+    const autoArchiveDryRun = archiveCompletedCases_('1999-01-01');
+    assert('Archive Completed Cases Dry Run', autoArchiveDryRun && typeof autoArchiveDryRun.archivedCount === 'number', 'archiveCompletedCases_ returned valid object');
 
     // 15. Test Sequential Case ID Generation
     const testNextId = generateNextCaseId(SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.CASES) : null);

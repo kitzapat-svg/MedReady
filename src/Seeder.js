@@ -3,7 +3,7 @@
  * Populates realistic sample data across all states for testing and verification.
  */
 
-function seedTestData() {
+function seedTestData_() {
   // 1. Ensure all sheets and properties exist first
   const setupRes = setupSystem();
   const ss = SpreadsheetApp.openById(setupRes.spreadsheetId);

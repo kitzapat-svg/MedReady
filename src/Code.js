@@ -356,29 +356,14 @@ function seedDefaultSettings(settingsSheet, results) {
 }
 
 /**
- * Handles Webhook HTTP POST requests (e.g. from Python sync script)
+ * Webhook HTTP POST endpoint - DISABLED for security.
+ * IPD Sync is performed directly via Service Account (sync.py) to Google Sheets.
  */
 function doPost(e) {
-  try {
-    let payload = null;
-    if (e && e.postData && e.postData.contents) {
-      payload = JSON.parse(e.postData.contents);
-    }
-    
-    if (!payload || !payload.orders || !Array.isArray(payload.orders)) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'Invalid payload: "orders" array required'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    const result = apiSyncIpdOrders(payload.orders);
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: err.message
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
+  return ContentService.createTextOutput(JSON.stringify({
+    success: false,
+    error: 'HTTP POST sync endpoint is disabled for security. Use direct Service Account sync.',
+    code: 'METHOD_DISABLED',
+    timestamp: new Date().toISOString()
+  })).setMimeType(ContentService.MimeType.JSON);
 }

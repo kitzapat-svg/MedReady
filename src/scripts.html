@@ -4,6 +4,19 @@
  * Handles Navigation, Real-time Sync, State Machine Interactions, and IPD Intranet Integration.
  */
 
+/**
+ * Global HTML Escaper to prevent Stored & DOM-based XSS attacks
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const App = {
   // Global State
   currentUser: null,
@@ -15,6 +28,7 @@ const App = {
   pharmacyFilter: 'ALL',
   pollTimer: null,
   isRefreshing: false,
+  escapeHtml: escapeHtml,
 
   /**
   webAppUrl: 'https://script.google.com/macros/s/AKfycbzuKdmZAvBMl854yaqDJha8z0NxOo_sRBK0daPKrkWJEli7QlJI3_QOoyPsPpGrQorI/exec',
@@ -82,16 +96,8 @@ const App = {
           App.webAppUrl = res.webAppUrl;
         }
 
-        if (res && res.authenticated && res.active && res.status !== 'ACCESS_DENIED' && res.status !== 'ACCOUNT_DEACTIVATED') {
-          // Remember logged-in session across page refreshes (F5)
-          localStorage.setItem('medready_logged_in', 'true');
-          App.currentUser = res;
-          App.setupUserInterface();
-        } else if (res && (!res.active || res.status === 'ACCESS_DENIED' || res.status === 'ACCOUNT_DEACTIVATED')) {
-          localStorage.removeItem('medready_logged_in');
-          App.showAuthDenied(res);
-        } else {
-          // Unauthenticated or needs account selection
+        // 1. Unauthenticated -> Send to Google AccountChooser directly
+        if (!res || !res.authenticated || res.status === 'UNAUTHENTICATED') {
           localStorage.removeItem('medready_logged_in');
           if (isSilentRefresh) {
             App.showLogin(res);
@@ -106,7 +112,20 @@ const App = {
             }
           } catch (e) {}
           window.location.href = targetUrl;
+          return;
         }
+
+        // 2. Authorized user in allowlist
+        if (res.authenticated && res.active && res.status === 'AUTHORIZED') {
+          localStorage.setItem('medready_logged_in', 'true');
+          App.currentUser = res;
+          App.setupUserInterface();
+          return;
+        }
+
+        // 3. Authenticated Google user but Access Denied / Account Deactivated
+        localStorage.removeItem('medready_logged_in');
+        App.showAuthDenied(res);
       })
       .withFailureHandler(function(err) {
         localStorage.removeItem('medready_logged_in');
@@ -322,6 +341,24 @@ const App = {
   },
 
   /**
+   * Cleans up local session and stops polling when authorization is lost or revoked
+   */
+  handleSessionRevoked: function(message) {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    localStorage.removeItem('medready_logged_in');
+    this.currentUser = null;
+    this.cases = [];
+    this.notifications = [];
+    this.showAuthDenied({
+      message: message || 'สิทธิ์การเข้าใช้งานของคุณถูกเพิกถอนหรือเซสชันหมดอายุ',
+      email: '-'
+    });
+  },
+
+  /**
    * Background Polling
    */
   startPolling: function(intervalMs) {
@@ -349,11 +386,18 @@ const App = {
           App.cases = res.data;
           App.renderCurrentScreen();
           if (manualTrigger) App.showToast('อัปเดตข้อมูลล่าสุดเรียบร้อย', 'success');
+        } else if (res && !res.success && (res.code === 'ACCESS_DENIED' || res.code === 'UNAUTHENTICATED' || res.code === 'UNAUTHORIZED' || res.code === 'FORBIDDEN')) {
+          App.handleSessionRevoked(res.error || res.message);
         }
       })
       .withFailureHandler(function(err) {
         App.isRefreshing = false;
-        if (manualTrigger) App.showToast('ไม่สามารถรีเฟรชข้อมูล: ' + err.message, 'error');
+        const msg = (err && err.message) ? err.message : '';
+        if (msg.includes('สิทธิ์') || msg.includes('Unauthorized') || msg.includes('ACCESS_DENIED') || msg.includes('FORBIDDEN')) {
+          App.handleSessionRevoked(msg);
+          return;
+        }
+        if (manualTrigger) App.showToast('ไม่สามารถรีเฟรชข้อมูล: ' + msg, 'error');
       })
       .apiListCases();
 
@@ -447,11 +491,11 @@ const App = {
     }
 
     let html = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-80 overflow-y-auto p-1">';
-    orders.forEach(order => {
+    orders.forEach((order, idx) => {
       const isAlreadySubmitted = order.isSubmitted;
       const statusPill = isAlreadySubmitted 
         ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1">
-             <span class="material-symbols-outlined text-xs">check_circle</span> ส่งห้องยาแล้ว (${order.existingCase ? order.existingCase.stateThai || '' : ''})
+             <span class="material-symbols-outlined text-xs">check_circle</span> ส่งห้องยาแล้ว (${escapeHtml(order.existingCase ? order.existingCase.stateThai || '' : '')})
            </span>`
         : `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#28cd41] text-white flex items-center gap-1 shadow-xs">
              <span class="material-symbols-outlined text-xs">medication</span> ยากลับบ้าน (HME)
@@ -460,7 +504,7 @@ const App = {
         ? `<button type="button" disabled class="px-3.5 py-1.5 text-xs bg-[#f0edef] text-[#86868b] rounded-lg font-medium cursor-not-allowed flex items-center gap-1">
              <span class="material-symbols-outlined text-xs">done_all</span> ส่งแล้ว
            </button>`
-        : `<button id="ipd-btn-${order.rawAn}" type="button" onclick="App.selectIpdOrder('${order.rawAn}', '${order.roomBed}', '${order.ward || ''}')" 
+        : `<button id="ipd-btn-${idx}" type="button" onclick="App.selectIpdOrderByIdx(${idx})" 
              class="px-3.5 py-1.5 text-xs bg-[#0071e3] hover:bg-[#0059b5] text-white rounded-lg font-medium flex items-center gap-1 shadow-sm transition-all">
              <span class="material-symbols-outlined text-xs">arrow_forward</span> ดึงข้อมูลส่งเคส
            </button>`;
@@ -475,21 +519,21 @@ const App = {
       }
 
       html += `
-        <div id="ipd-card-${order.rawAn}" class="p-4 bg-white border ${isAlreadySubmitted ? 'border-[#e4e2e4] bg-[#fcf8fb] opacity-70' : 'border-[#0071e3]/30 hover:border-[#0071e3]'} rounded-xl shadow-xs space-y-3 transition-all">
+        <div id="ipd-card-${idx}" class="p-4 bg-white border ${isAlreadySubmitted ? 'border-[#e4e2e4] bg-[#fcf8fb] opacity-70' : 'border-[#0071e3]/30 hover:border-[#0071e3]'} rounded-xl shadow-xs space-y-3 transition-all">
           <div class="flex items-center justify-between gap-2">
-            <span class="font-bold text-sm text-[#1b1b1d] font-mono tracking-wide">${order.maskedAn}</span>
+            <span class="font-bold text-sm text-[#1b1b1d] font-mono tracking-wide">${escapeHtml(order.maskedAn)}</span>
             ${statusPill}
           </div>
           
           <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[#414753] pt-0.5">
             <div class="flex items-center gap-1.5 font-medium text-[#1b1b1d]">
               <span class="text-[#86868b]">•</span>
-              <span class="text-[#0059b5] font-semibold">${order.ward ? order.ward + ' / ' : ''}${order.roomBed || 'ไม่ระบุห้อง'}</span>
+              <span class="text-[#0059b5] font-semibold">${escapeHtml(order.ward ? order.ward + ' / ' : '')}${escapeHtml(order.roomBed || 'ไม่ระบุห้อง')}</span>
             </div>
             ${displayTime ? `
               <div class="flex items-center gap-1 text-[#86868b]">
                 <span class="material-symbols-outlined text-xs">schedule</span>
-                <span>${displayTime}</span>
+                <span>${escapeHtml(displayTime)}</span>
               </div>
             ` : ''}
           </div>
@@ -502,6 +546,12 @@ const App = {
     });
     html += '</div>';
     container.innerHTML = html;
+  },
+
+  selectIpdOrderByIdx: function(idx) {
+    const order = this.syncedIpdOrders && this.syncedIpdOrders[idx];
+    if (!order) return;
+    this.selectIpdOrder(order.rawAn, order.roomBed, order.ward);
   },
 
   /**
@@ -669,16 +719,16 @@ const App = {
       let html = '';
       readyCases.forEach(c => {
         html += `
-          <div onclick="App.openCaseDetail('${c.caseId}')" class="medready-card medready-card-interactive p-5 cursor-pointer border-l-4 border-l-[#28cd41] space-y-3">
+          <div onclick="App.openCaseDetail('${escapeHtml(c.caseId)}')" class="medready-card medready-card-interactive p-5 cursor-pointer border-l-4 border-l-[#28cd41] space-y-3">
             <div class="flex items-center justify-between">
-              <span class="font-mono font-bold text-sm text-[#0059b5]">${c.caseId}</span>
+              <span class="font-mono font-bold text-sm text-[#0059b5]">${escapeHtml(c.caseId)}</span>
               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#28cd41]/10 text-[#28cd41] flex items-center gap-1">
                 <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#28cd41]"></span> พร้อมจ่าย
               </span>
             </div>
             <div>
-              <div class="font-display font-semibold text-lg text-[#1b1b1d]">${c.roomBed}</div>
-              <div class="font-mono text-xs text-[#86868b]">${c.maskedAn}</div>
+              <div class="font-display font-semibold text-lg text-[#1b1b1d]">${escapeHtml(c.roomBed)}</div>
+              <div class="font-mono text-xs text-[#86868b]">${escapeHtml(c.maskedAn)}</div>
             </div>
             <div class="pt-2 border-t border-[#e4e2e4] flex items-center justify-between text-xs text-[#86868b]">
               <span>พร้อมตั้งแต่: ${c.readyAt ? new Date(c.readyAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}</span>
@@ -698,10 +748,10 @@ const App = {
       let html = '';
       inprogCases.forEach(c => {
         html += `
-          <div onclick="App.openCaseDetail('${c.caseId}')" class="p-3.5 bg-white border border-[#e4e2e4] hover:border-[#0071e3] rounded-lg cursor-pointer flex items-center justify-between">
+          <div onclick="App.openCaseDetail('${escapeHtml(c.caseId)}')" class="p-3.5 bg-white border border-[#e4e2e4] hover:border-[#0071e3] rounded-lg cursor-pointer flex items-center justify-between">
             <div>
-              <div class="font-semibold text-xs text-[#1b1b1d]">${c.roomBed} (${c.maskedAn})</div>
-              <div class="text-[11px] text-[#86868b]">${c.caseId} • เตรียมมาแล้ว ${c.elapsedText}</div>
+              <div class="font-semibold text-xs text-[#1b1b1d]">${escapeHtml(c.roomBed)} (${escapeHtml(c.maskedAn)})</div>
+              <div class="text-[11px] text-[#86868b]">${escapeHtml(c.caseId)} • เตรียมมาแล้ว ${escapeHtml(c.elapsedText)}</div>
             </div>
             <span class="material-symbols-outlined text-sm text-[#0071e3]">chevron_right</span>
           </div>
@@ -718,10 +768,10 @@ const App = {
       let html = '';
       submittedCases.forEach(c => {
         html += `
-          <div onclick="App.openCaseDetail('${c.caseId}')" class="p-3.5 bg-white border border-[#e4e2e4] hover:border-[#0071e3] rounded-lg cursor-pointer flex items-center justify-between">
+          <div onclick="App.openCaseDetail('${escapeHtml(c.caseId)}')" class="p-3.5 bg-white border border-[#e4e2e4] hover:border-[#0071e3] rounded-lg cursor-pointer flex items-center justify-between">
             <div>
-              <div class="font-semibold text-xs text-[#1b1b1d]">${c.roomBed} (${c.maskedAn})</div>
-              <div class="text-[11px] text-[#86868b]">${c.caseId} • ส่งเมื่อ ${c.submittedAt ? new Date(c.submittedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}</div>
+              <div class="font-semibold text-xs text-[#1b1b1d]">${escapeHtml(c.roomBed)} (${escapeHtml(c.maskedAn)})</div>
+              <div class="text-[11px] text-[#86868b]">${escapeHtml(c.caseId)} • ส่งเมื่อ ${c.submittedAt ? new Date(c.submittedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}</div>
             </div>
             <span class="material-symbols-outlined text-sm text-[#86868b]">chevron_right</span>
           </div>
@@ -842,20 +892,20 @@ const App = {
       `;
 
       html += `
-        <div onclick="App.openCaseDetail('${c.caseId}')" class="medready-card medready-card-interactive p-5 cursor-pointer ${slaClass} flex flex-col xl:flex-row xl:items-center justify-between gap-5 bg-white shadow-xs hover:shadow-md transition-all">
+        <div onclick="App.openCaseDetail('${escapeHtml(c.caseId)}')" class="medready-card medready-card-interactive p-5 cursor-pointer ${slaClass} flex flex-col xl:flex-row xl:items-center justify-between gap-5 bg-white shadow-xs hover:shadow-md transition-all">
           <!-- 1. Patient & Case Metadata -->
           <div class="flex-shrink-0 min-w-[200px] space-y-1.5">
             <div class="flex items-center gap-2">
-              <span class="font-numeric font-bold text-base text-[#0059b5]">${c.caseId}</span>
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase ${slaBadgeClass}">${c.slaLabel}</span>
+              <span class="font-numeric font-bold text-base text-[#0059b5]">${escapeHtml(c.caseId)}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase ${slaBadgeClass}">${escapeHtml(c.slaLabel)}</span>
             </div>
             <div class="flex items-center gap-1.5 text-xs text-[#1b1b1d] font-medium">
               <span class="material-symbols-outlined text-sm text-[#86868b]">meeting_room</span>
-              <span class="font-semibold text-[#0059b5]">${c.wardScope}</span> • <span>${c.roomBed}</span>
+              <span class="font-semibold text-[#0059b5]">${escapeHtml(c.wardScope)}</span> • <span>${escapeHtml(c.roomBed)}</span>
             </div>
             <div class="flex items-center gap-2 text-xs text-[#86868b]">
-              <span class="font-mono">${c.maskedAn}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#f0edef] text-[#414753]">${c.appointmentStatus || 'นัดหมายแล้ว'}</span>
+              <span class="font-mono">${escapeHtml(c.maskedAn)}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#f0edef] text-[#414753]">${escapeHtml(c.appointmentStatus || 'นัดหมายแล้ว')}</span>
             </div>
           </div>
 
@@ -869,7 +919,7 @@ const App = {
           <!-- 3. Elapsed Time & Primary Action -->
           <div class="flex-shrink-0 flex flex-row xl:flex-col items-center xl:items-end justify-between w-full xl:w-48 gap-3 pt-3 xl:pt-0 border-t xl:border-t-0 border-[#e4e2e4]">
             <div class="text-left xl:text-right">
-              <div class="font-numeric font-bold text-sm text-[#1b1b1d]">เวลารวม ${c.elapsedText}</div>
+              <div class="font-numeric font-bold text-sm text-[#1b1b1d]">เวลารวม ${escapeHtml(c.elapsedText)}</div>
               <div class="text-[10px] text-[#86868b]">ส่งเมื่อ ${c.submittedAt ? new Date(c.submittedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</div>
             </div>
             <div class="shrink-0 w-full sm:w-auto xl:w-full flex justify-end">
@@ -941,15 +991,15 @@ const App = {
       filtered.forEach(c => {
         const slaClass = c.slaBand === 'BREACHED' ? 'text-[#ff3b30]' : (c.slaBand === 'APPROACHING' ? 'text-[#ff9f0a]' : 'text-[#28cd41]');
         html += `
-          <tr onclick="App.openCaseDetail('${c.caseId}')" class="hover:bg-[#f6f3f5] cursor-pointer transition-colors">
-            <td class="py-3 px-4 font-mono font-bold text-[#0059b5]">${c.caseId}</td>
-            <td class="py-3 px-4 font-mono">${c.maskedAn}</td>
-            <td class="py-3 px-4 font-medium">${c.wardScope} / ${c.roomBed}</td>
+          <tr onclick="App.openCaseDetail('${escapeHtml(c.caseId)}')" class="hover:bg-[#f6f3f5] cursor-pointer transition-colors">
+            <td class="py-3 px-4 font-mono font-bold text-[#0059b5]">${escapeHtml(c.caseId)}</td>
+            <td class="py-3 px-4 font-mono">${escapeHtml(c.maskedAn)}</td>
+            <td class="py-3 px-4 font-medium">${escapeHtml(c.wardScope)} / ${escapeHtml(c.roomBed)}</td>
             <td class="py-3 px-4">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#f0edef] text-[#1b1b1d]">${c.stateThai}</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#f0edef] text-[#1b1b1d]">${escapeHtml(c.stateThai)}</span>
             </td>
-            <td class="py-3 px-4 font-mono">${c.elapsedText}</td>
-            <td class="py-3 px-4 font-bold text-[11px] ${slaClass}">${c.slaLabel}</td>
+            <td class="py-3 px-4 font-mono">${escapeHtml(c.elapsedText)}</td>
+            <td class="py-3 px-4 font-bold text-[11px] ${slaClass}">${escapeHtml(c.slaLabel)}</td>
             <td class="py-3 px-4 text-right">
               <button class="text-[#0071e3] hover:underline font-medium">ดูเคส</button>
             </td>
@@ -964,15 +1014,15 @@ const App = {
       let html = '';
       filtered.forEach(c => {
         html += `
-          <div onclick="App.openCaseDetail('${c.caseId}')" class="p-4 bg-white cursor-pointer hover:bg-[#f6f3f5] space-y-1.5">
+          <div onclick="App.openCaseDetail('${escapeHtml(c.caseId)}')" class="p-4 bg-white cursor-pointer hover:bg-[#f6f3f5] space-y-1.5">
             <div class="flex items-center justify-between">
-              <span class="font-mono font-bold text-xs text-[#0059b5]">${c.caseId}</span>
-              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f0edef] text-[#1b1b1d]">${c.stateThai}</span>
+              <span class="font-mono font-bold text-xs text-[#0059b5]">${escapeHtml(c.caseId)}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f0edef] text-[#1b1b1d]">${escapeHtml(c.stateThai)}</span>
             </div>
-            <div class="font-medium text-xs text-[#1b1b1d]">${c.wardScope} / ${c.roomBed} (${c.maskedAn})</div>
+            <div class="font-medium text-xs text-[#1b1b1d]">${escapeHtml(c.wardScope)} / ${escapeHtml(c.roomBed)} (${escapeHtml(c.maskedAn)})</div>
             <div class="flex items-center justify-between text-[11px] text-[#86868b]">
-              <span>เวลารวม: ${c.elapsedText}</span>
-              <span class="font-bold">${c.slaLabel}</span>
+              <span>เวลารวม: ${escapeHtml(c.elapsedText)}</span>
+              <span class="font-bold">${escapeHtml(c.slaLabel)}</span>
             </div>
           </div>
         `;
@@ -1073,7 +1123,7 @@ const App = {
       flags.forEach(f => {
         html += `
           <div class="px-3 py-1.5 bg-[#ffdad6]/40 border border-[#ffdad6] text-[#ba1a1a] rounded-lg text-xs flex items-center justify-between">
-            <span class="font-medium">🚩 ${f.flagType}</span>
+            <span class="font-medium">🚩 ${escapeHtml(f.flagType)}</span>
             <span class="text-[10px] text-[#414753]">${new Date(f.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         `;
@@ -1088,9 +1138,9 @@ const App = {
       tHtml += `
         <div class="relative text-xs">
           <div class="w-2.5 h-2.5 rounded-full bg-[#0071e3] absolute -left-[19px] top-1"></div>
-          <div class="font-semibold text-[#1b1b1d]">${t.event}</div>
-          <div class="text-[11px] text-[#86868b]">${t.actor} • ${new Date(t.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
-          ${t.details ? `<div class="text-xs text-[#414753] mt-0.5">${t.details}</div>` : ''}
+          <div class="font-semibold text-[#1b1b1d]">${escapeHtml(t.event)}</div>
+          <div class="text-[11px] text-[#86868b]">${escapeHtml(t.actor)} • ${new Date(t.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+          ${t.details ? `<div class="text-xs text-[#414753] mt-0.5">${escapeHtml(t.details)}</div>` : ''}
         </div>
       `;
     });
@@ -1135,6 +1185,14 @@ const App = {
           if (drawer && !drawer.classList.contains('hidden')) {
             App.openNotifications();
           }
+        } else if (res && !res.success && (res.code === 'ACCESS_DENIED' || res.code === 'UNAUTHENTICATED' || res.code === 'UNAUTHORIZED' || res.code === 'FORBIDDEN')) {
+          App.handleSessionRevoked(res.error || res.message);
+        }
+      })
+      .withFailureHandler(function(err) {
+        const msg = (err && err.message) ? err.message : '';
+        if (msg.includes('สิทธิ์') || msg.includes('Unauthorized') || msg.includes('ACCESS_DENIED') || msg.includes('FORBIDDEN')) {
+          App.handleSessionRevoked(msg);
         }
       })
       .apiListNotifications();
@@ -1165,20 +1223,20 @@ const App = {
       const titleColor = isUnread ? 'text-[#0071e3] font-semibold' : 'text-[#1b1b1d] font-medium opacity-80';
 
       html += `
-        <div class="group relative p-3.5 my-1.5 rounded-r-xl transition-all cursor-pointer ${cardBg}" onclick="App.clickNotification('${n.notificationId}', '${n.caseId || ''}')">
+        <div class="group relative p-3.5 my-1.5 rounded-r-xl transition-all cursor-pointer ${cardBg}" onclick="App.clickNotification('${escapeHtml(n.notificationId)}', '${escapeHtml(n.caseId || '')}')">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2">
               ${isUnread ? '<span class="w-2 h-2 rounded-full bg-[#0071e3] inline-block animate-pulse"></span>' : ''}
-              <div class="text-xs ${titleColor}">${n.title}</div>
+              <div class="text-xs ${titleColor}">${escapeHtml(n.title)}</div>
             </div>
             <div class="flex items-center gap-1">
-              <span class="text-[10px] text-[#86868b]">${n.timeThai || (n.timestamp ? new Date(n.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '')}</span>
-              <button onclick="event.stopPropagation(); App.deleteNotification('${n.notificationId}')" class="opacity-0 group-hover:opacity-100 p-1 text-[#86868b] hover:text-[#ba1a1a] hover:bg-white rounded transition-all" title="ลบการแจ้งเตือนนี้">
+              <span class="text-[10px] text-[#86868b]">${escapeHtml(n.timeThai || (n.timestamp ? new Date(n.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''))}</span>
+              <button onclick="event.stopPropagation(); App.deleteNotification('${escapeHtml(n.notificationId)}')" class="opacity-0 group-hover:opacity-100 p-1 text-[#86868b] hover:text-[#ba1a1a] hover:bg-white rounded transition-all" title="ลบการแจ้งเตือนนี้">
                 <span class="material-symbols-outlined text-sm">close</span>
               </button>
             </div>
           </div>
-          <div class="text-xs text-[#414753] mt-1 whitespace-pre-line leading-relaxed ${isUnread ? '' : 'opacity-75'}">${n.message}</div>
+          <div class="text-xs text-[#414753] mt-1 whitespace-pre-line leading-relaxed ${isUnread ? '' : 'opacity-75'}">${escapeHtml(n.message)}</div>
           ${n.caseId ? `
             <div class="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#0071e3] hover:underline">
               <span>ดูรายละเอียดเคส</span>

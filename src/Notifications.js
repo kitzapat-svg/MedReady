@@ -33,9 +33,9 @@ function serializeUserList(list) {
 }
 
 /**
- * Creates a READY notification for the submitting ward
+ * Creates a READY notification for the submitting ward (Private server helper)
  */
-function createReadyNotification(params) {
+function createReadyNotification_(params) {
   try {
     const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
@@ -354,8 +354,9 @@ function apiDismissNotification(notificationId) {
 /**
  * Cleans up old notifications to prevent database bloat.
  * Purges rows older than the retention period (in days) from the Notifications sheet.
+ * (Private server helper)
  */
-function cleanupOldNotifications(retentionDays) {
+function cleanupOldNotifications_(retentionDays) {
   try {
     const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEETS.NOTIFICATIONS);
@@ -418,7 +419,7 @@ function cleanupOldNotifications(retentionDays) {
 function apiCleanupNotifications(retentionDays) {
   try {
     requireAuthorization([CONFIG.ROLES.PHARMACY, CONFIG.ROLES.SUPER_ADMIN]);
-    const res = cleanupOldNotifications(retentionDays);
+    const res = cleanupOldNotifications_(retentionDays);
     if (!res.success) throw new Error(res.error);
     return successResponse(res, `ล้างการแจ้งเตือนเก่าเรียบร้อยแล้ว (${res.count} รายการถูกลบ)`);
   } catch (err) {

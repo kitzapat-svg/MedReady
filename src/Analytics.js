@@ -502,7 +502,7 @@ function apiRunDailyArchiving(targetDateStr) {
       }
 
       // 3. Clear completed cases (DISPENSED) of the target date / past days into Archive
-      const archiveRes = archiveCompletedCases(dateToProcess);
+      const archiveRes = archiveCompletedCases_(dateToProcess);
       const archivedCount = archiveRes.archivedCount || 0;
       const cleanedNotifsCount = archiveRes.cleanedNotifsCount || 0;
 
@@ -522,9 +522,10 @@ function apiRunDailyArchiving(targetDateStr) {
  * Moves completed cases (DISPENSED) to Cases_Archive and Timeline_Archive,
  * removing them from active Cases & Timeline sheets to keep database lean and fast.
  * Uncompleted cases (SUBMITTED, IN_PROGRESS, READY, BASKET_RECEIVED) are PRESERVED in Cases sheet.
+ * (Private server helper)
  * @param {string} [maxDateStr] - Optional max date (YYYY-MM-DD) to archive. If omitted, archives all DISPENSED cases.
  */
-function archiveCompletedCases(maxDateStr) {
+function archiveCompletedCases_(maxDateStr) {
   const ss = getSpreadsheet();
   const autoSheets = ensureArchiveAndSummarySheets(ss);
   const casesArchiveSheet = autoSheets.casesArchiveSheet;

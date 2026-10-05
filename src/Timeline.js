@@ -4,9 +4,9 @@
  */
 
 /**
- * Appends an event to the Timeline / Audit Log
+ * Appends an event to the Timeline / Audit Log (Private server helper)
  */
-function logTimelineEvent(params) {
+function logTimelineEvent_(params) {
   try {
     const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE);
@@ -31,9 +31,9 @@ function logTimelineEvent(params) {
 }
 
 /**
- * Gets formatted timeline for a specific case with interval calculations
+ * Gets formatted timeline for a specific case with interval calculations (Private server helper)
  */
-function getCaseTimeline(caseId) {
+function getCaseTimeline_(caseId) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.TIMELINE);
   let data = [];
@@ -119,7 +119,7 @@ function apiAddIssueFlag(params) {
         ''
       ]);
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: params.caseId,
         event: 'ISSUE_FLAG_ADDED',
         actor: user.name + ' (' + user.email + ')',
@@ -170,7 +170,7 @@ function apiResolveIssueFlag(flagId) {
       sheet.getRange(rowIndex, 7).setValue(now);
       sheet.getRange(rowIndex, 8).setValue(user.email);
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: caseId,
         event: 'ISSUE_FLAG_RESOLVED',
         actor: user.name + ' (' + user.email + ')',
@@ -187,9 +187,9 @@ function apiResolveIssueFlag(flagId) {
 }
 
 /**
- * Gets all active issue flags for a case
+ * Gets all active issue flags for a case (Private server helper)
  */
-function getCaseIssueFlags(caseId) {
+function getCaseIssueFlags_(caseId) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.ISSUE_FLAGS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
@@ -218,9 +218,9 @@ function getCaseIssueFlags(caseId) {
 }
 
 /**
- * Map of active issue flags indexed by caseId for fast lookup in list views
+ * Map of active issue flags indexed by caseId for fast lookup in list views (Private server helper)
  */
-function getActiveIssueFlagsMap() {
+function getActiveIssueFlagsMap_() {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.ISSUE_FLAGS);
   const map = {};

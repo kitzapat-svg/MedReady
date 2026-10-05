@@ -119,7 +119,7 @@ function apiUpdateSettings(newSettings) {
 
         // Audit Log in Timeline
         if (oldVal !== cleanVal) {
-          logTimelineEvent({
+          logTimelineEvent_({
             caseId: '-',
             event: 'SETTING_CHANGED_' + cleanKey,
             actor: (user.name || user.email) + ' (' + user.email + ')',

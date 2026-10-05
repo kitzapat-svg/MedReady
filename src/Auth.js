@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MedReady - Authentication & Authorization Engine
  * Enforces Google Sign-In allowlist and server-side role / ward-scope verification.
  */
@@ -103,11 +103,6 @@ function getCurrentUser() {
     };
   }
 
-  // Update Last Login timestamp asynchronously or directly
-  try {
-    userSheet.getRange(userRowIndex, 7).setValue(new Date().toISOString());
-  } catch (e) {}
-
   return {
     authenticated: true,
     email: matchedUser.email,
@@ -118,6 +113,30 @@ function getCurrentUser() {
     status: 'AUTHORIZED',
     webAppUrl: webAppUrl
   };
+}
+
+/**
+ * Records user login timestamp only on explicit login / bootstrap.
+ * Throttles writes to avoid sheets contention.
+ */
+function recordUserLogin_(email) {
+  if (!email) return;
+  try {
+    const ss = getSpreadsheet();
+    const userSheet = ss.getSheetByName(CONFIG.SHEETS.USERS);
+    if (!userSheet || userSheet.getLastRow() <= 1) return;
+
+    const cleanEmail = String(email).toLowerCase().trim();
+    const data = userSheet.getRange(2, 1, userSheet.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][0] || '').toLowerCase().trim() === cleanEmail) {
+        userSheet.getRange(i + 2, 7).setValue(new Date().toISOString());
+        break;
+      }
+    }
+  } catch (e) {
+    Logger.log('Could not update last login for ' + email + ': ' + e.message);
+  }
 }
 
 /**
@@ -155,6 +174,9 @@ function requireAuthorization(allowedRoles, requiredWard) {
 function apiGetBootstrap() {
   try {
     const user = getCurrentUser();
+    if (user && user.authenticated && user.active && user.status === 'AUTHORIZED') {
+      recordUserLogin_(user.email);
+    }
     const settings = apiGetSettingsPublic();
     
     return successResponse({

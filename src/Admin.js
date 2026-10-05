@@ -64,12 +64,29 @@ function apiToggleUserActive(email, active) {
       let rowIndex = -1;
 
       if (lastRow > 1) {
-        const emails = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        for (let i = 0; i < emails.length; i++) {
-          if (String(emails[i][0] || '').toLowerCase().trim() === cleanEmail) {
-            rowIndex = i + 2;
-            break;
+        const fullData = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+        let activeAdminCount = 0;
+        let targetCurrentRole = '';
+        let targetCurrentActive = false;
+
+        for (let i = 0; i < fullData.length; i++) {
+          const rowEmail = String(fullData[i][0] || '').toLowerCase().trim();
+          const rowRole = String(fullData[i][1] || '').toUpperCase().trim();
+          const rowActive = String(fullData[i][3]).toUpperCase() === 'TRUE';
+
+          if (rowRole === CONFIG.ROLES.SUPER_ADMIN && rowActive) {
+            activeAdminCount++;
           }
+          if (rowEmail === cleanEmail) {
+            rowIndex = i + 2;
+            targetCurrentRole = rowRole;
+            targetCurrentActive = rowActive;
+          }
+        }
+
+        // Prevent deactivating the last active SUPER_ADMIN
+        if (!isActive && targetCurrentRole === CONFIG.ROLES.SUPER_ADMIN && targetCurrentActive && activeAdminCount <= 1) {
+          return errorResponse('ไม่อนุญาตให้ปิดการใช้งาน Super Admin คนสุดท้ายของระบบ', 'LAST_ADMIN_PROTECTED');
         }
       }
 
@@ -79,7 +96,7 @@ function apiToggleUserActive(email, active) {
 
       sheet.getRange(rowIndex, 4).setValue(isActive ? 'TRUE' : 'FALSE');
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: '-',
         event: 'USER_STATUS_TOGGLED',
         actor: admin.name + ' (' + admin.email + ')',
@@ -109,7 +126,7 @@ function apiSaveUser(userData) {
     const email = String(userData.email).toLowerCase().trim();
     const role = String(userData.role).toUpperCase().trim();
     const wardScope = String(userData.wardScope || 'ตึกพิเศษ').trim();
-    const active = userData.active !== false;
+    const active = userData.active !== false && String(userData.active).toLowerCase() !== 'false';
     const name = String(userData.name || email.split('@')[0]).trim();
 
     if (![CONFIG.ROLES.WARD, CONFIG.ROLES.PHARMACY, CONFIG.ROLES.SUPER_ADMIN].includes(role)) {
@@ -130,11 +147,31 @@ function apiSaveUser(userData) {
       let rowIndex = -1;
 
       if (lastRow > 1) {
-        const emails = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        for (let i = 0; i < emails.length; i++) {
-          if (String(emails[i][0] || '').toLowerCase().trim() === email) {
+        const fullData = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+        let activeAdminCount = 0;
+        let targetCurrentRole = '';
+        let targetCurrentActive = false;
+
+        for (let i = 0; i < fullData.length; i++) {
+          const rowEmail = String(fullData[i][0] || '').toLowerCase().trim();
+          const rowRole = String(fullData[i][1] || '').toUpperCase().trim();
+          const rowActive = String(fullData[i][3]).toUpperCase() === 'TRUE';
+
+          if (rowRole === CONFIG.ROLES.SUPER_ADMIN && rowActive) {
+            activeAdminCount++;
+          }
+          if (rowEmail === email) {
             rowIndex = i + 2;
-            break;
+            targetCurrentRole = rowRole;
+            targetCurrentActive = rowActive;
+          }
+        }
+
+        // Check last admin invariant if modifying existing active SUPER_ADMIN
+        if (rowIndex > 0 && targetCurrentRole === CONFIG.ROLES.SUPER_ADMIN && targetCurrentActive) {
+          const willRemainActiveAdmin = (role === CONFIG.ROLES.SUPER_ADMIN && active);
+          if (!willRemainActiveAdmin && activeAdminCount <= 1) {
+            return errorResponse('ไม่อนุญาตให้ลดสิทธิ์หรือปิดการใช้งาน Super Admin คนสุดท้ายของระบบ', 'LAST_ADMIN_PROTECTED');
           }
         }
       }
@@ -160,7 +197,7 @@ function apiSaveUser(userData) {
         ]);
       }
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: '-',
         event: 'USER_MODIFIED',
         actor: admin.name + ' (' + admin.email + ')',
@@ -194,19 +231,44 @@ function apiDeleteUser(email) {
 
       const lastRow = sheet.getLastRow();
       if (lastRow > 1) {
-        const emails = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        for (let i = 0; i < emails.length; i++) {
-          if (String(emails[i][0] || '').toLowerCase().trim() === cleanEmail) {
-            sheet.deleteRow(i + 2);
-            logTimelineEvent({
-              caseId: '-',
-              event: 'USER_DELETED',
-              actor: admin.name + ' (' + admin.email + ')',
-              details: 'ลบผู้ใช้ ' + cleanEmail
-            });
-            return successResponse({ email: cleanEmail }, 'ลบผู้ใช้สำเร็จ');
+        const fullData = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+        let activeAdminCount = 0;
+        let targetCurrentRole = '';
+        let targetCurrentActive = false;
+        let deleteRowIndex = -1;
+
+        for (let i = 0; i < fullData.length; i++) {
+          const rowEmail = String(fullData[i][0] || '').toLowerCase().trim();
+          const rowRole = String(fullData[i][1] || '').toUpperCase().trim();
+          const rowActive = String(fullData[i][3]).toUpperCase() === 'TRUE';
+
+          if (rowRole === CONFIG.ROLES.SUPER_ADMIN && rowActive) {
+            activeAdminCount++;
+          }
+          if (rowEmail === cleanEmail) {
+            deleteRowIndex = i + 2;
+            targetCurrentRole = rowRole;
+            targetCurrentActive = rowActive;
           }
         }
+
+        if (deleteRowIndex <= 0) {
+          return errorResponse('ไม่พบผู้ใช้งานนี้ในระบบ', 'NOT_FOUND');
+        }
+
+        // Prevent deleting the last active SUPER_ADMIN
+        if (targetCurrentRole === CONFIG.ROLES.SUPER_ADMIN && targetCurrentActive && activeAdminCount <= 1) {
+          return errorResponse('ไม่อนุญาตให้ลบ Super Admin คนสุดท้ายของระบบ', 'LAST_ADMIN_PROTECTED');
+        }
+
+        sheet.deleteRow(deleteRowIndex);
+        logTimelineEvent_({
+          caseId: '-',
+          event: 'USER_DELETED',
+          actor: admin.name + ' (' + admin.email + ')',
+          details: 'ลบผู้ใช้ ' + cleanEmail
+        });
+        return successResponse({ email: cleanEmail }, 'ลบผู้ใช้สำเร็จ');
       }
       return errorResponse('ไม่พบผู้ใช้งานนี้ในระบบ', 'NOT_FOUND');
     });
@@ -309,7 +371,7 @@ function apiAddWard(wardName) {
 
       apiUpdateSettings({ WARD_OPTIONS: newWardOptions });
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: '-',
         event: 'WARD_CREATED',
         actor: admin.name + ' (' + admin.email + ')',
@@ -398,7 +460,7 @@ function apiUpdateWard(oldName, newName) {
         cRange.setValues(cValues);
       }
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: '-',
         event: 'WARD_UPDATED',
         actor: admin.name + ' (' + admin.email + ')',
@@ -470,7 +532,7 @@ function apiDeleteWard(wardName) {
         uRange.setValues(uValues);
       }
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: '-',
         event: 'WARD_DELETED',
         actor: admin.name + ' (' + admin.email + ')',
@@ -513,7 +575,7 @@ function apiSetDefaultWard(wardName) {
 
       apiUpdateSettings({ DEFAULT_WARD: cleanName });
 
-      logTimelineEvent({
+      logTimelineEvent_({
         caseId: '-',
         event: 'DEFAULT_WARD_CHANGED',
         actor: admin.name + ' (' + admin.email + ')',
@@ -530,8 +592,9 @@ function apiSetDefaultWard(wardName) {
 /**
  * Lists all "MedReady Database" Google Sheets in Drive.
  * Useful for reviewing duplicate files.
+ * (Private server helper - admin maintenance only)
  */
-function listDuplicateDatabases() {
+function listDuplicateDatabases_() {
   const list = [];
   const currentSheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   
@@ -573,8 +636,9 @@ function listDuplicateDatabases() {
  * Consolidates to a single database.
  * Sets the chosen spreadsheet as the active SHEET_ID in Script Properties.
  * Optionally moves duplicate/unused files to Trash.
+ * (Private server helper - admin maintenance only)
  */
-function cleanupDuplicateDatabases(keepSpreadsheetId, trashDuplicates) {
+function cleanupDuplicateDatabases_(keepSpreadsheetId, trashDuplicates) {
   const currentProp = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   let primaryId = keepSpreadsheetId || currentProp;
   const duplicates = [];
@@ -648,8 +712,9 @@ function cleanupDuplicateDatabases(keepSpreadsheetId, trashDuplicates) {
 
 /**
  * Manually bind the system to a specific Google Spreadsheet ID.
+ * (Private server helper - admin maintenance only)
  */
-function setPrimarySpreadsheetId(spreadsheetId) {
+function setPrimarySpreadsheetId_(spreadsheetId) {
   if (!spreadsheetId || typeof spreadsheetId !== 'string') {
     throw new Error('Please provide a valid spreadsheet ID.');
   }
@@ -717,7 +782,7 @@ function apiToggleDailyTrigger(enable) {
     try {
       if (shouldEnable) {
         const res = setupDailyAutomationTrigger();
-        logTimelineEvent({
+        logTimelineEvent_({
           caseId: '-',
           event: 'TRIGGER_ENABLED',
           actor: admin.name + ' (' + admin.email + ')',
@@ -733,7 +798,7 @@ function apiToggleDailyTrigger(enable) {
             deleted++;
           }
         }
-        logTimelineEvent({
+        logTimelineEvent_({
           caseId: '-',
           event: 'TRIGGER_DISABLED',
           actor: admin.name + ' (' + admin.email + ')',

@@ -148,27 +148,5 @@ function getSpreadsheet() {
     }
   } catch (e) {}
 
-  // 4. Search Drive for existing "MedReady Database" to reuse single file
-  try {
-    const files = DriveApp.getFilesByName('MedReady Database');
-    while (files.hasNext()) {
-      const file = files.next();
-      if (!file.isTrashed()) {
-        const id = file.getId();
-        PropertiesService.getScriptProperties().setProperty('SHEET_ID', id);
-        Logger.log('Found and bound existing MedReady Database in Drive: ' + id);
-        return SpreadsheetApp.openById(id);
-      }
-    }
-  } catch (e) {
-    Logger.log('Could not search Drive for MedReady Database: ' + e.message);
-  }
-  
-  // 5. Safe initialization (creates or finds single spreadsheet)
-  const res = setupSystem();
-  if (res && res.spreadsheetId) {
-    return SpreadsheetApp.openById(res.spreadsheetId);
-  }
-
-  throw new Error('Spreadsheet not configured. Please run setupSystem() or set SHEET_ID in Script Properties.');
+  throw new Error('ไม่สามารถเชื่อมต่อฐานข้อมูล MedReady ได้ กรุณาตรวจสอบ SHEET_ID ใน Script Properties หรือสิทธิ์การเข้าถึง');
 }
